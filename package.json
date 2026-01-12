@@ -17,7 +17,7 @@
   "license": "ISC",
   "dependencies": {
     "@colyseus/schema": "^3.0.76",
-    "colyseus": "^0.16.5",
+    "colyseus": "^0.17.4",
     "colyseus.js": "^0.16.22",
     "cors": "^2.8.5",
     "express": "^5.2.1",
