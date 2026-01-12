@@ -29,48 +29,48 @@ This guide will help you set up Google OAuth authentication for SnowClash.
 
 1. Open `src/client/index.html`
 2. Replace `YOUR_GOOGLE_CLIENT_ID` with your actual Google Client ID:
-   ```html
-   <meta name="google-signin-client_id" content="YOUR_ACTUAL_CLIENT_ID.apps.googleusercontent.com">
-   ```
+```html
+<meta name="google-signin-client_id" content="YOUR_ACTUAL_CLIENT_ID.apps.googleusercontent.com">
+```
 
 ### 4. Implement Full Google Sign-In (Optional Enhancement)
 
 The current implementation includes a simplified sign-in for demonstration purposes. To implement full Google OAuth:
 
 1. Update `LobbyScene.ts` to use the Google Sign-In API:
-   ```typescript
-   private initGoogleSignIn() {
-     google.accounts.id.initialize({
-       client_id: 'YOUR_CLIENT_ID.apps.googleusercontent.com',
-       callback: this.handleGoogleResponse.bind(this)
-     });
-     
-     google.accounts.id.renderButton(
-       document.getElementById('googleSignInButton'),
-       { theme: 'outline', size: 'large' }
-     );
-   }
-   
-   private handleGoogleResponse(response: any) {
-     const credential = response.credential;
-     // Decode JWT token to get user info
-     const payload = JSON.parse(atob(credential.split('.')[1]));
-     
-     this.googleUser = {
-       id: payload.sub,
-       name: payload.name,
-       photoUrl: payload.picture
-     };
-     
-     this.nickname = payload.name;
-     // ... rest of the sign-in logic
-   }
-   ```
+```typescript
+private initGoogleSignIn() {
+  google.accounts.id.initialize({
+    client_id: 'YOUR_CLIENT_ID.apps.googleusercontent.com',
+    callback: this.handleGoogleResponse.bind(this)
+  });
+
+  google.accounts.id.renderButton(
+    document.getElementById('googleSignInButton'),
+    { theme: 'outline', size: 'large' }
+  );
+}
+
+private handleGoogleResponse(response: any) {
+  const credential = response.credential;
+  // Decode JWT token to get user info
+  const payload = JSON.parse(atob(credential.split('.')[1]));
+
+  this.googleUser = {
+    id: payload.sub,
+    name: payload.name,
+    photoUrl: payload.picture
+  };
+
+  this.nickname = payload.name;
+  // ... rest of the sign-in logic
+}
+```
 
 2. Add a div in your HTML for the Google Sign-In button:
-   ```html
-   <div id="googleSignInButton"></div>
-   ```
+```html
+<div id="googleSignInButton"></div>
+```
 
 ## Security Notes
 
