@@ -304,8 +304,9 @@ export class GameRoom extends Room<GameState> {
 
   private isInPlayerTerritory(x: number, y: number, team: string): boolean {
     // Map is divided diagonally from top-left to bottom-right
-    // Red team territory: above/left of diagonal (x + y < MAP_SIZE)
-    // Blue team territory: below/right of diagonal (x + y > MAP_SIZE)
+    // Red team territory: above/left of diagonal (x + y <= MAP_SIZE)
+    // Blue team territory: below/right of diagonal (x + y >= MAP_SIZE)
+    // Players on the exact diagonal can be in either territory
     
     if (team === 'red') {
       return x + y <= MAP_SIZE;

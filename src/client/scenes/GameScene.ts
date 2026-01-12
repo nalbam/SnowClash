@@ -116,23 +116,23 @@ export class GameScene extends Phaser.Scene {
     graphics.lineTo(MAP_SIZE, MAP_SIZE);
     graphics.strokePath();
 
-    // Draw red territory (top-left)
+    // Draw red territory (top-left triangle, above the diagonal)
+    // Points: (0,0) top-left corner, (MAP_SIZE,0) top-right corner, (0,MAP_SIZE) bottom-left corner
     graphics.fillStyle(0xff0000, 0.1);
     graphics.beginPath();
     graphics.moveTo(0, 0);
     graphics.lineTo(MAP_SIZE, 0);
-    graphics.lineTo(MAP_SIZE, MAP_SIZE);
-    graphics.lineTo(0, 0);
+    graphics.lineTo(0, MAP_SIZE);
     graphics.closePath();
     graphics.fillPath();
 
-    // Draw blue territory (bottom-right)
+    // Draw blue territory (bottom-right triangle, below the diagonal)
+    // Points: (MAP_SIZE,MAP_SIZE) bottom-right corner, (MAP_SIZE,0) top-right corner, (0,MAP_SIZE) bottom-left corner
     graphics.fillStyle(0x0000ff, 0.1);
     graphics.beginPath();
-    graphics.moveTo(0, 0);
+    graphics.moveTo(MAP_SIZE, MAP_SIZE);
+    graphics.lineTo(MAP_SIZE, 0);
     graphics.lineTo(0, MAP_SIZE);
-    graphics.lineTo(MAP_SIZE, MAP_SIZE);
-    graphics.lineTo(0, 0);
     graphics.closePath();
     graphics.fillPath();
 

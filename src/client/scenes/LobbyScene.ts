@@ -118,7 +118,7 @@ export class LobbyScene extends Phaser.Scene {
   private handleGoogleSignIn() {
     // Simplified Google sign-in
     this.googleUser = {
-      id: 'user_' + Math.random().toString(36).substr(2, 9),
+      id: 'user_' + Math.random().toString(36).substring(2, 11),
       name: 'Player' + Math.floor(Math.random() * 1000),
       photoUrl: ''
     };
