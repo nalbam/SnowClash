@@ -151,11 +151,20 @@ export class BotController {
   }
 
   private isInTerritory(x: number, y: number, team: string): boolean {
-    const margin = 20;
+    // 플레이어 크기(15px) 만큼 패딩 적용
+    const playerRadius = 15;
+
+    // 맵 경계 패딩
+    if (x < playerRadius || x > MAP_SIZE - playerRadius ||
+        y < playerRadius || y > MAP_SIZE - playerRadius) {
+      return false;
+    }
+
+    // 대각선 기준 패딩
     if (team === 'red') {
-      return y <= x - margin;
+      return y <= x - playerRadius;
     } else {
-      return y >= x + margin;
+      return y >= x + playerRadius;
     }
   }
 

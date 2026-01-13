@@ -144,13 +144,6 @@ export class GameScene extends Phaser.Scene {
     graphics.fillStyle(0xffffff, 1);
     graphics.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
 
-    // Draw diagonal line dividing territories (\ shape: top-left to bottom-right)
-    graphics.lineStyle(3, 0x000000, 1);
-    graphics.beginPath();
-    graphics.moveTo(0, 0);
-    graphics.lineTo(MAP_SIZE, MAP_SIZE);
-    graphics.strokePath();
-
     // Draw red territory (top-right triangle, above the \ diagonal)
     // Triangle vertices: (0,0), (MAP_SIZE,0), (MAP_SIZE,MAP_SIZE)
     // This area satisfies: y <= x
@@ -172,10 +165,6 @@ export class GameScene extends Phaser.Scene {
     graphics.lineTo(MAP_SIZE, MAP_SIZE);
     graphics.closePath();
     graphics.fillPath();
-
-    // Border
-    graphics.lineStyle(2, 0x000000, 1);
-    graphics.strokeRect(0, 0, MAP_SIZE, MAP_SIZE);
   }
 
   private setupRoomHandlers() {

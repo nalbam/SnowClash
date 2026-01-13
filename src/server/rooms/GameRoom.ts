@@ -367,12 +367,20 @@ export class GameRoom extends Room<GameState> {
     // Map is divided by \ diagonal (top-left to bottom-right)
     // Red team territory: top-right triangle (y <= x)
     // Blue team territory: bottom-left triangle (y >= x)
-    // Players on the exact diagonal can be in either territory
+    // 플레이어 크기(15px) 만큼 패딩 적용
+    const playerRadius = 15;
 
+    // 맵 경계 패딩
+    if (x < playerRadius || x > MAP_SIZE - playerRadius ||
+        y < playerRadius || y > MAP_SIZE - playerRadius) {
+      return false;
+    }
+
+    // 대각선 기준 패딩
     if (team === 'red') {
-      return y <= x;
+      return y <= x - playerRadius;
     } else {
-      return y >= x;
+      return y >= x + playerRadius;
     }
   }
 }
