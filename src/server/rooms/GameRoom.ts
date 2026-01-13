@@ -45,7 +45,7 @@ export class GameRoom extends Room<GameState> {
       // Check team capacity
       const teamCount = Array.from(this.state.players.values())
         .filter(p => p.team === team).length;
-      
+
       if (teamCount >= 3 && player.team !== team) {
         client.send('error', { message: 'Team is full' });
         return;
@@ -158,9 +158,9 @@ export class GameRoom extends Room<GameState> {
       if (this.state.phase === 'lobby') {
         const p = this.state.players.get(client.sessionId);
         if (p && !p.isReady) {
-          this.broadcast('playerKicked', { 
-            sessionId: client.sessionId, 
-            reason: 'Not ready within 1 minute' 
+          this.broadcast('playerKicked', {
+            sessionId: client.sessionId,
+            reason: 'Not ready within 1 minute'
           });
           client.leave();
         }
@@ -172,7 +172,7 @@ export class GameRoom extends Room<GameState> {
 
   onLeave(client: Client, consented: boolean) {
     const player = this.state.players.get(client.sessionId);
-    
+
     // Clear ready timer
     const timer = this.readyTimers.get(client.sessionId);
     if (timer) {
@@ -350,17 +350,20 @@ export class GameRoom extends Room<GameState> {
     this.state.phase = 'ended';
     this.state.winner = winner;
 
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = undefined;
-    }
-
-    // Remove all bots
-    if (this.botController) {
-      this.botController.removeAllBots();
-    }
-
     this.broadcast('gameEnded', { winner });
+
+    // 눈덩이가 마저 움직이도록 3초 후에 업데이트 중지
+    setTimeout(() => {
+      if (this.updateInterval) {
+        clearInterval(this.updateInterval);
+        this.updateInterval = undefined;
+      }
+
+      // Remove all bots
+      if (this.botController) {
+        this.botController.removeAllBots();
+      }
+    }, 3000);
   }
 
   private isInPlayerTerritory(x: number, y: number, team: string): boolean {
