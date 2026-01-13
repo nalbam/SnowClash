@@ -19,17 +19,20 @@ app.use(helmet({
 
 // Security: CORS - restrict to allowed origins
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || ['http://localhost:8080', 'http://localhost:2567'];
-console.log('ALLOWED_ORIGINS:', ALLOWED_ORIGINS);
+console.log('ALLOWED_ORIGINS:', JSON.stringify(ALLOWED_ORIGINS));
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.) in development
     if (!origin && process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    const trimmedOrigin = origin?.trim();
+    const isAllowed = trimmedOrigin && ALLOWED_ORIGINS.includes(trimmedOrigin);
+    console.log('CORS check - origin:', JSON.stringify(origin), 'trimmed:', JSON.stringify(trimmedOrigin), 'allowed:', isAllowed);
+    if (!origin || isAllowed) {
       callback(null, true);
     } else {
-      console.log('CORS rejected origin:', origin);
+      console.log('CORS rejected origin:', JSON.stringify(origin));
       callback(new Error('Not allowed by CORS'));
     }
   },
