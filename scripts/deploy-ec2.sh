@@ -153,10 +153,11 @@ npm ci --production=false
 log_info "Building server..."
 npm run build:server
 
-log_info "Building client with domain..."
-SERVER_URL="$DOMAIN" npm run build
+log_success "Server build completed"
 
-log_success "Build completed"
+# Note: Client is hosted separately (GitHub Pages, S3, etc.)
+# If you need to build client here, uncomment:
+# SERVER_URL="$DOMAIN" npm run build
 
 # ============================================
 # 9. Configure Nginx
@@ -208,16 +209,10 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    # Static files (client)
-    location / {
-        root $INSTALL_DIR/public;
-        try_files \$uri \$uri/ /index.html;
-
-        # Cache static assets
-        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
+    # Health check endpoint
+    location = / {
+        return 200 'SnowClash Server OK';
+        add_header Content-Type text/plain;
     }
 
     # API endpoints
@@ -278,8 +273,8 @@ server {
     server_name $DOMAIN;
 
     location / {
-        root $INSTALL_DIR/public;
-        try_files \$uri \$uri/ /index.html;
+        return 200 'SnowClash Server';
+        add_header Content-Type text/plain;
     }
 }
 EOF
@@ -441,7 +436,6 @@ cd $INSTALL_DIR
 git pull origin main
 npm ci --production=false
 npm run build:server
-SERVER_URL="$DOMAIN" npm run build
 pm2 restart $APP_NAME
 echo "Update completed!"
 EOF
