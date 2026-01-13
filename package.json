@@ -9,7 +9,7 @@
   "main": "dist/server/index.js",
   "scripts": {
     "build": "webpack --mode production",
-    "build:server": "npx tsc",
+    "build:server": "./node_modules/.bin/tsc",
     "start": "node dist/server/index.js",
     "dev:server": "nodemon --watch src/server --exec ts-node src/server/index.ts",
     "dev:client": "webpack serve --mode development",
