@@ -305,7 +305,12 @@ export class GameRoom extends Room<GameState> {
           Math.pow(player.y - snowball.y, 2)
         );
 
-        if (distance < 20) { // Hit radius
+        // 충돌 범위: 캐릭터 반지름(15) + 눈덩이 반지름(일반 5, 차지 9)
+        const playerRadius = 15;
+        const snowballRadius = snowball.damage >= CHARGED_DAMAGE ? 9 : 5;
+        const hitRadius = playerRadius + snowballRadius;
+
+        if (distance < hitRadius) {
           // Stunned players can still be hit (act as dummy/shield)
           if (!player.isStunned) {
             player.energy -= snowball.damage;
