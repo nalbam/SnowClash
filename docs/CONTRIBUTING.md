@@ -50,8 +50,8 @@ git checkout -b feature/새로운-기능
 
 | 도구 | 버전 | 확인 명령어 |
 |------|------|-------------|
-| Node.js | 16 이상 | `node --version` |
-| npm | 8 이상 | `npm --version` |
+| Node.js | 22 이상 | `node --version` |
+| npm | 10 이상 | `npm --version` |
 
 ### 의존성 설치
 
@@ -303,7 +303,7 @@ Closes #123
 
 ## 환경
 - OS: macOS 14 / Windows 11 / Ubuntu 22.04
-- Node.js: v20.x
+- Node.js: v22.x
 - 브라우저: Chrome 120
 ```
 

@@ -4,7 +4,7 @@ SnowClash AWS 배포 가이드입니다.
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - AWS CLI 설치 및 설정
 - Domain name (recommended)
 - SSL certificate (ACM)
@@ -82,11 +82,11 @@ aws ec2 run-instances \
 ssh -i your-key.pem ec2-user@<public-ip>
 
 # Node.js 설치
-curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
 sudo yum install -y nodejs git
 
 # 프로젝트 클론 및 빌드
-git clone https://github.com/your-repo/SnowClash.git
+git clone https://github.com/nalbam/SnowClash.git
 cd SnowClash
 npm ci --production
 npm run build:server
@@ -250,7 +250,7 @@ files:
 
 ```bash
 # 초기화
-eb init snowclash --platform "Node.js 18" --region ap-northeast-2
+eb init snowclash --platform "Node.js 22" --region ap-northeast-2
 
 # 단일 인스턴스로 생성 (저렴)
 eb create snowclash-env --single --instance-type t3.micro

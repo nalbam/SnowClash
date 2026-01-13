@@ -2,6 +2,10 @@
   "name": "snowclash",
   "version": "1.0.0",
   "description": "SnowClash - 3v3 multiplayer snowball fight game using Phaser 3 and Colyseus",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
   "main": "dist/server/index.js",
   "scripts": {
     "build": "webpack --mode production",
