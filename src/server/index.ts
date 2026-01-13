@@ -12,6 +12,9 @@ import { generateNickname } from './utils/NicknameGenerator';
 
 const app = express();
 
+// Trust proxy (for rate limiting behind reverse proxy like Nginx)
+app.set('trust proxy', 1);
+
 // Security: Helmet for security headers
 app.use(helmet({
   contentSecurityPolicy: false, // Disable for game assets
