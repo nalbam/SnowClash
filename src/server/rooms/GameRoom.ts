@@ -299,17 +299,19 @@ export class GameRoom extends Room<GameState> {
       // Check collision with players
       this.state.players.forEach(player => {
         if (player.team === snowball.team) return; // Don't hit teammates
-        if (player.isStunned) return;
 
         const distance = Math.sqrt(
-          Math.pow(player.x - snowball.x, 2) + 
+          Math.pow(player.x - snowball.x, 2) +
           Math.pow(player.y - snowball.y, 2)
         );
 
         if (distance < 20) { // Hit radius
-          player.energy -= snowball.damage;
-          if (player.energy <= 0) {
-            player.isStunned = true;
+          // Stunned players can still be hit (act as dummy/shield)
+          if (!player.isStunned) {
+            player.energy -= snowball.damage;
+            if (player.energy <= 0) {
+              player.isStunned = true;
+            }
           }
           snowballsToRemove.push(id);
         }

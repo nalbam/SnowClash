@@ -28,6 +28,8 @@ export class GameScene extends Phaser.Scene {
   private lastThrowTime: number = 0;
   private readonly THROW_COOLDOWN: number = 1000; // 1초 쿨다운
   private readonly MIN_CHARGE_TIME: number = 200; // 최소 0.2초 차징 필요
+  private fadingSnowballs: Set<string> = new Set(); // 페이딩 중인 눈덩이 추적
+  private snowballPositions: Map<string, { x: number; y: number; team: string }> = new Map(); // 눈덩이 마지막 위치 저장
 
   constructor() {
     super({ key: 'GameScene' });
@@ -40,6 +42,8 @@ export class GameScene extends Phaser.Scene {
     this.snowballs.clear();
     this.playerLabels.clear();
     this.energyBars.clear();
+    this.fadingSnowballs.clear();
+    this.snowballPositions.clear();
   }
 
   create() {
@@ -228,7 +232,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     state.snowballs.onRemove((snowball: any, id: string) => {
-      this.removeSnowball(id);
+      this.removeSnowball(id, snowball);
     });
   }
 
@@ -252,6 +256,18 @@ export class GameScene extends Phaser.Scene {
         this.createSnowball(id, snowball);
       } else {
         this.updateSnowball(id, snowball);
+      }
+    });
+
+    // 상태에 없는 눈덩이 제거 (onRemove가 호출되지 않는 경우 대비)
+    const stateSnowballIds = new Set<string>();
+    state.snowballs.forEach((_: any, id: string) => {
+      stateSnowballIds.add(id);
+    });
+
+    this.snowballs.forEach((_, id) => {
+      if (!stateSnowballIds.has(id) && !this.fadingSnowballs.has(id)) {
+        this.removeSnowball(id);
       }
     });
   }
@@ -330,16 +346,19 @@ export class GameScene extends Phaser.Scene {
 
       const barWidth = 30;
       const barHeight = 4;
-      const energyPercent = player.energy / 10;
+      // 기절한 플레이어는 체력바 0으로 표시
+      const energyPercent = player.isStunned ? 0 : Math.max(0, player.energy / 10);
 
       // Background
       energyBar.fillStyle(0x000000, 0.5);
       energyBar.fillRect(player.x - barWidth / 2, player.y - 35, barWidth, barHeight);
 
-      // Energy fill
-      const energyColor = energyPercent > 0.5 ? 0x00ff00 : energyPercent > 0.25 ? 0xffff00 : 0xff0000;
-      energyBar.fillStyle(energyColor, 1);
-      energyBar.fillRect(player.x - barWidth / 2, player.y - 35, barWidth * energyPercent, barHeight);
+      // Energy fill (기절 시 표시 안함)
+      if (energyPercent > 0) {
+        const energyColor = energyPercent > 0.5 ? 0x00ff00 : energyPercent > 0.25 ? 0xffff00 : 0xff0000;
+        energyBar.fillStyle(energyColor, 1);
+        energyBar.fillRect(player.x - barWidth / 2, player.y - 35, barWidth * energyPercent, barHeight);
+      }
     }
   }
 
@@ -374,6 +393,12 @@ export class GameScene extends Phaser.Scene {
     const graphics = this.snowballs.get(id);
     if (!graphics) return;
 
+    // 페이딩 중인 눈덩이는 다시 그리지 않음
+    if (this.fadingSnowballs.has(id)) return;
+
+    // 위치 저장 (제거 시 파편 효과용)
+    this.snowballPositions.set(id, { x: snowball.x, y: snowball.y, team: snowball.team });
+
     const color = snowball.team === 'red' ? 0xff0000 : 0x0000ff;
 
     // Size based on damage (normal=4, charged=7)
@@ -394,11 +419,55 @@ export class GameScene extends Phaser.Scene {
     this.drawSnowball(id, snowball);
   }
 
-  private removeSnowball(id: string) {
+  private removeSnowball(id: string, snowball?: any) {
     const graphics = this.snowballs.get(id);
     if (graphics) {
-      graphics.destroy();
+      // 눈덩이 위치와 팀 정보 (저장된 위치 또는 snowball 객체에서)
+      const storedPos = this.snowballPositions.get(id);
+      const x = snowball?.x ?? storedPos?.x ?? 0;
+      const y = snowball?.y ?? storedPos?.y ?? 0;
+      const team = snowball?.team ?? storedPos?.team ?? 'red';
+
+      // 원본 눈덩이 즉시 제거
+      this.fadingSnowballs.delete(id);
       this.snowballs.delete(id);
+      this.snowballPositions.delete(id);
+      graphics.destroy();
+
+      // 파편 효과 생성
+      this.createDebrisEffect(x, y, team);
+    }
+  }
+
+  private createDebrisEffect(x: number, y: number, team: string) {
+    const color = team === 'red' ? 0xff6666 : 0x6666ff;
+    const numParticles = 6;
+
+    for (let i = 0; i < numParticles; i++) {
+      const particle = this.add.graphics();
+      particle.fillStyle(color, 1);
+      particle.fillCircle(0, 0, 2 + Math.random() * 2);
+      particle.setPosition(x, y);
+
+      // 방사형으로 퍼지는 방향
+      const angle = (Math.PI * 2 * i) / numParticles + Math.random() * 0.3;
+      const distance = 15 + Math.random() * 15;
+      const targetX = x + Math.cos(angle) * distance;
+      const targetY = y + Math.sin(angle) * distance;
+
+      // 파편 애니메이션
+      this.tweens.add({
+        targets: particle,
+        x: targetX,
+        y: targetY,
+        alpha: 0,
+        scale: 0.3,
+        duration: 400,
+        ease: 'Power2',
+        onComplete: () => {
+          particle.destroy();
+        }
+      });
     }
   }
 
