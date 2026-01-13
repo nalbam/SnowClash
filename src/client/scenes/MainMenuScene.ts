@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Client, Room } from 'colyseus.js';
+import { config } from '../config';
 
 interface RoomInfo {
   roomId: string;
@@ -21,7 +22,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   async create() {
     this.cameras.main.setBackgroundColor('#1a1a2e');
-    this.client = new Client('ws://localhost:2567');
+    this.client = new Client(config.wsUrl);
 
     // Generate random nickname
     await this.generateNickname();
@@ -39,7 +40,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   private async generateNickname() {
     try {
-      const response = await fetch('http://localhost:2567/api/nickname');
+      const response = await fetch(`${config.apiUrl}/api/nickname`);
       const data = await response.json() as { nickname: string };
       this.nickname = data.nickname;
     } catch (error) {
@@ -132,7 +133,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   private async refreshRoomList() {
     try {
-      const response = await fetch('http://localhost:2567/api/rooms');
+      const response = await fetch(`${config.apiUrl}/api/rooms`);
       this.rooms = await response.json() as RoomInfo[];
       this.updateRoomListUI();
     } catch (error) {

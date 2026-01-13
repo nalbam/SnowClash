@@ -98,3 +98,24 @@ Located in `src/client/scenes/GameScene.ts`:
 - **TypeScript**: Server uses `tsc` (tsconfig.json includes only `src/server/**/*`)
 - **Webpack**: Client bundled with ts-loader, outputs to `public/bundle.js`
 - Client and server are compiled separately with different configurations
+
+## Environment Variables
+
+### Client (build-time)
+- `SERVER_URL`: Server address for client to connect (default: `localhost:2567`)
+```bash
+# Development (default)
+npm run dev
+
+# Production build with custom server
+SERVER_URL=game.example.com:2567 npm run build
+
+# Or with HTTPS (protocol auto-detected from page)
+SERVER_URL=game.example.com npm run build
+```
+
+### Server (runtime)
+- `PORT`: Server port (default: `2567`)
+```bash
+PORT=3000 npm start
+```

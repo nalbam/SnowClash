@@ -1,5 +1,8 @@
 const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+
+const SERVER_URL = process.env.SERVER_URL || 'localhost:2567';
 
 module.exports = {
   entry: './src/client/index.ts',
@@ -9,7 +12,12 @@ module.exports = {
     rules: [
       {
         test: /\.tsx?$/,
-        use: 'ts-loader',
+        use: {
+          loader: 'ts-loader',
+          options: {
+            configFile: 'tsconfig.client.json',
+          },
+        },
         exclude: /node_modules/,
       },
     ],
@@ -22,6 +30,9 @@ module.exports = {
     path: path.resolve(__dirname, 'public'),
   },
   plugins: [
+    new webpack.DefinePlugin({
+      'process.env.SERVER_URL': JSON.stringify(SERVER_URL),
+    }),
     new HtmlWebpackPlugin({
       template: './src/client/index.html',
       filename: 'index.html',
