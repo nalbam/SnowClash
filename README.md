@@ -73,6 +73,25 @@ npm run build
 npm start
 ```
 
+## Environment Variables
+
+### Client (build-time)
+- `SERVER_URL`: Server address for client to connect (default: `localhost:2567`)
+
+```bash
+SERVER_URL=game.example.com npm run build
+```
+
+### Server (runtime)
+- `PORT`: Server port (default: `2567`)
+- `REDIS_URL`: Redis URL for horizontal scaling (optional)
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
+- `NODE_ENV`: Set to `production` for stricter security
+
+```bash
+NODE_ENV=production ALLOWED_ORIGINS=https://game.example.com npm start
+```
+
 ## Game Rules
 
 1. **Main Menu**:
@@ -92,7 +111,7 @@ npm start
    - Throw snowballs at opponents
    - Hold Space to charge for more damage
    - Avoid getting hit
-   - Bots throw snowballs every 2 seconds
+   - Bots move randomly every 1 second and throw snowballs every 2 seconds
 
 4. **Winning**:
    - Stun all opponents by reducing their energy to 0 or below

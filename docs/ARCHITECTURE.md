@@ -156,7 +156,7 @@ private isInPlayerTerritory(x, y, team): boolean
 #### 봇 특성
 
 - **닉네임**: `[BOT] {랜덤이름}` 형식
-- **이동**: 없음 (제자리)
+- **이동**: 1초마다 랜덤 방향으로 이동 (플레이어와 동일한 속도 2)
 - **공격**: 2초마다 상대 진영 방향으로 눈덩이 발사 (일반 데미지 4)
 - **피격**: 일반 플레이어와 동일
 
@@ -419,6 +419,7 @@ SnowClash/
 ├── src/
 │   ├── client/                      # 클라이언트 코드
 │   │   ├── index.ts                 # Phaser 게임 설정
+│   │   ├── config.ts                # 서버 연결 설정
 │   │   ├── index.html               # HTML 템플릿
 │   │   └── scenes/
 │   │       ├── MainMenuScene.ts     # 메인 메뉴 씬
@@ -453,9 +454,17 @@ SnowClash/
 │   ├── DEPLOYMENT.md                # 배포 가이드
 │   └── GOOGLE_OAUTH_SETUP.md        # OAuth 설정 가이드 (선택)
 │
+├── .github/
+│   └── workflows/
+│       └── deploy-client.yml        # GitHub Pages 배포
+│
 ├── package.json                     # 의존성 및 스크립트
 ├── tsconfig.json                    # TypeScript 설정 (서버용)
+├── tsconfig.client.json             # TypeScript 설정 (클라이언트용)
 ├── webpack.config.js                # Webpack 설정 (클라이언트용)
+├── Dockerfile                       # 도커 빌드 설정
+├── .env.example                     # 환경변수 예시 (개발용)
+├── .env.production.example          # 환경변수 예시 (프로덕션용)
 ├── README.md                        # 프로젝트 소개
 └── CLAUDE.md                        # Claude Code 가이드
 ```
@@ -489,5 +498,11 @@ npm run build  # public/bundle.js에 출력
 `webpack.config.js` 설정:
 - 진입점: `src/client/index.ts`
 - 출력: `public/bundle.js`
-- 로더: `ts-loader`
+- 로더: `ts-loader` (`tsconfig.client.json` 사용)
 - 개발 서버 포트: 8080
+
+`tsconfig.client.json` 설정:
+- `target`: ES2020
+- `module`: ES2020
+- `lib`: ES2020, DOM (브라우저 API 지원)
+- `include`: `src/client/**/*`
