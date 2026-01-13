@@ -20,6 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^17.2.3",
     "@colyseus/redis-driver": "^0.16.1",
     "@colyseus/redis-presence": "^0.16.4",
     "@colyseus/schema": "^3.0.76",

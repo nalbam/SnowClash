@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Server, matchMaker, ServerOptions } from 'colyseus';
 import { RedisPresence } from '@colyseus/redis-presence';
 import { RedisDriver } from '@colyseus/redis-driver';
