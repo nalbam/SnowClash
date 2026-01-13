@@ -36,10 +36,11 @@ yarn-error.log*
 Thumbs.db
 
 # ============================================
-# IDE / Editor
+# IDE / Editor / AI
 # ============================================
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 *~
