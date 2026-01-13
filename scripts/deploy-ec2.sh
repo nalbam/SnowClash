@@ -232,8 +232,8 @@ server {
         proxy_send_timeout 86400s;
     }
 
-    # WebSocket connections (Colyseus room IDs)
-    location ~ ^/[a-zA-Z0-9_-]+\$ {
+    # WebSocket connections (Colyseus room IDs - supports /roomId/odS format)
+    location ~ ^/[a-zA-Z0-9_/-]+\$ {
         proxy_pass http://snowclash_backend;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
