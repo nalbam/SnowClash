@@ -110,6 +110,16 @@ npm start
 - **Language**: TypeScript
 - **Bundler**: Webpack
 
+## Documentation
+
+For more detailed information, see the [docs](./docs) folder:
+
+- [Architecture Guide](./docs/ARCHITECTURE.md) - System architecture and component overview
+- [API Reference](./docs/API.md) - REST API and WebSocket message protocol
+- [Game Mechanics](./docs/GAME_MECHANICS.md) - Game rules, systems, and constants
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment instructions
+- [Contributing](./docs/CONTRIBUTING.md) - Contribution guidelines
+
 ## License
 
 ISC

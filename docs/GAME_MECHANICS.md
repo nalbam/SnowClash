@@ -7,11 +7,13 @@ SnowClash의 게임 규칙, 시스템, 상수값을 설명합니다.
 1. [게임 개요](#게임-개요)
 2. [게임 상수](#게임-상수)
 3. [게임 페이즈](#게임-페이즈)
-4. [영역 시스템](#영역-시스템)
-5. [플레이어 시스템](#플레이어-시스템)
-6. [눈덩이 시스템](#눈덩이-시스템)
-7. [승리 조건](#승리-조건)
-8. [게임 루프](#게임-루프)
+4. [룸 시스템](#룸-시스템)
+5. [봇 시스템](#봇-시스템)
+6. [영역 시스템](#영역-시스템)
+7. [플레이어 시스템](#플레이어-시스템)
+8. [눈덩이 시스템](#눈덩이-시스템)
+9. [승리 조건](#승리-조건)
+10. [게임 루프](#게임-루프)
 
 ---
 
@@ -26,13 +28,14 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 ### 게임 흐름
 
 ```
-로비 → 게임 시작 → 눈싸움 → 한 팀 전멸 → 게임 종료
+메인 메뉴 → 룸 참여/생성 → 로비 → 게임 시작 → 눈싸움 → 한 팀 전멸 → 게임 종료 → 메인 메뉴
 ```
 
-1. **로비**: 플레이어들이 Red/Blue 팀을 선택하고 준비
-2. **게임 시작**: 호스트가 게임 시작, 초기 위치 배치
-3. **눈싸움**: 이동하며 눈덩이를 던져 상대 에너지 깎기
-4. **게임 종료**: 한 팀의 모든 플레이어가 스턴되면 종료
+1. **메인 메뉴**: 랜덤 닉네임 생성, 룸 목록 조회, 룸 생성/참여
+2. **로비**: 플레이어들이 Red/Blue 팀을 선택하고 준비
+3. **게임 시작**: 호스트가 게임 시작, 부족한 인원은 봇으로 채움
+4. **눈싸움**: 이동하며 눈덩이를 던져 상대 에너지 깎기
+5. **게임 종료**: 한 팀의 모든 플레이어가 스턴되면 종료
 
 ---
 
@@ -50,18 +53,24 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 | `READY_TIMEOUT` | 60000 | ms (1분) | 준비 타임아웃 |
 | `HIT_RADIUS` | 20 | 픽셀 | 눈덩이 충돌 판정 반경 |
 | `INITIAL_ENERGY` | 10 | 에너지 | 플레이어 초기 에너지 |
+| `BOT_ATTACK_INTERVAL` | 2000 | ms (2초) | 봇 공격 간격 |
 
 ### 상수 위치
 
-모든 상수는 `src/server/rooms/GameRoom.ts` 파일 상단에 정의되어 있습니다.
+- 게임 상수: `src/server/rooms/GameRoom.ts`
+- 봇 상수: `src/server/bots/BotController.ts`
 
 ```typescript
+// GameRoom.ts
 const READY_TIMEOUT = 60000;
 const MAP_SIZE = 800;
 const PLAYER_SPEED = 3;
 const SNOWBALL_SPEED = 5;
 const NORMAL_DAMAGE = 4;
 const CHARGED_DAMAGE = 7;
+
+// BotController.ts
+const BOT_ATTACK_INTERVAL = 2000;
 ```
 
 ---
@@ -87,9 +96,9 @@ const CHARGED_DAMAGE = 7;
 - 게임 시작 (호스트만)
 
 **전환 조건**
-- 모든 플레이어가 준비 완료
-- 양 팀에 최소 1명 이상
+- 최소 1명의 인간 플레이어가 준비 완료
 - 호스트가 `startGame` 메시지 전송
+- 부족한 인원은 봇으로 자동 채움
 
 **자동 추방**
 - 1분(60초) 내에 준비하지 않은 플레이어는 자동으로 추방됩니다.
@@ -103,6 +112,7 @@ const CHARGED_DAMAGE = 7;
 - 눈덩이 발사 (Space)
 
 **60 FPS 게임 루프**
+- 봇 행동 업데이트
 - 눈덩이 위치 업데이트
 - 충돌 검사
 - 승리 조건 확인
@@ -120,7 +130,103 @@ const CHARGED_DAMAGE = 7;
 - 결과 화면
 
 **전환**
-- 클라이언트에서 5초 후 로비로 복귀
+- 모든 봇 제거
+- 클라이언트에서 5초 후 메인 메뉴로 복귀
+
+---
+
+## 룸 시스템
+
+여러 게임이 동시에 진행될 수 있는 룸 시스템입니다.
+
+### 룸 생성 방식
+
+| 방식 | 설명 |
+|------|------|
+| Quick Play | `joinOrCreate`로 기존 룸 참여 또는 새 룸 생성 |
+| Create Room | 새 룸을 명시적으로 생성 |
+| Join Room | 룸 목록에서 특정 룸에 참여 |
+
+### 룸 속성
+
+| 속성 | 설명 |
+|------|------|
+| `roomId` | 고유 룸 ID |
+| `roomName` | 룸 이름 (생성자 닉네임 기반) |
+| `playerCount` | 현재 플레이어 수 |
+| `maxPlayers` | 최대 플레이어 수 (6명) |
+
+### 호스트 시스템
+
+- **호스트 지정**: 방에 처음 입장한 인간 플레이어
+- **호스트 권한**: 게임 시작 버튼 사용 가능
+- **호스트 승계**: 호스트가 퇴장하면 가장 오래된 플레이어가 새 호스트
+
+```typescript
+if (player?.isHost && this.state.players.size > 0) {
+  const newHost = Array.from(this.state.players.values())[0];
+  newHost.isHost = true;
+}
+```
+
+---
+
+## 봇 시스템
+
+플레이어가 부족할 때 자동으로 채워지는 AI 플레이어입니다.
+
+### 봇 생성 조건
+
+- 게임 시작 시 각 팀이 3명 미만이면 봇으로 채움
+- 최소 1명의 인간 플레이어가 있어야 게임 시작 가능
+
+```
+예시: Red팀 2명, Blue팀 1명인 경우
+→ Red팀에 봇 1명 추가 (총 3명)
+→ Blue팀에 봇 2명 추가 (총 3명)
+→ 3v3 게임 시작
+```
+
+### 봇 특성
+
+| 속성 | 값 |
+|------|-----|
+| 닉네임 | `[BOT] {랜덤이름}` (예: `[BOT] SnowBot42`) |
+| 이동 | 없음 (제자리) |
+| 공격 | 2초마다 상대 진영 방향으로 눈덩이 발사 |
+| 데미지 | 일반 데미지 (4) |
+| 피격 | 일반 플레이어와 동일 |
+| 에너지 | 10 (일반 플레이어와 동일) |
+
+### 봇 닉네임 목록
+
+봇은 다음 이름 중 하나를 랜덤으로 사용합니다:
+- SnowBot, FrostBot, IceBot, BlizzardBot, WinterBot
+- ChillyBot, ArcticBot, PolarBot, GlacierBot, FlurryBot
+
+### 봇 행동 로직
+
+```typescript
+// 2초마다 눈덩이 발사
+if (currentTime - lastAttack >= BOT_ATTACK_INTERVAL) {
+  this.botThrowSnowball(botId);
+  this.lastAttackTime.set(botId, currentTime);
+}
+
+// 눈덩이 발사 방향 (상대 진영 방향)
+if (bot.team === 'red') {
+  snowball.velocityX = -SNOWBALL_SPEED;  // 좌하단 방향
+  snowball.velocityY = SNOWBALL_SPEED;
+} else {
+  snowball.velocityX = SNOWBALL_SPEED;   // 우상단 방향
+  snowball.velocityY = -SNOWBALL_SPEED;
+}
+```
+
+### 봇 제거
+
+- 게임 종료 시 모든 봇이 자동으로 제거됩니다.
+- 봇은 로비에서 플레이어 목록에 표시되지 않습니다.
 
 ---
 
@@ -185,6 +291,7 @@ private isInPlayerTerritory(x: number, y: number, team: string): boolean {
 | `team` | '' | 소속 팀 |
 | `isHost` | false | 호스트 여부 |
 | `isReady` | false | 준비 상태 |
+| `isBot` | false | 봇 여부 |
 
 ### 에너지 시스템
 
@@ -223,19 +330,6 @@ newY = player.y + y * PLAYER_SPEED;  // PLAYER_SPEED: 3
 **대각선 이동**
 - 두 방향 키 동시 입력 시 대각선 이동
 - 예: W + D = 우상단 이동
-
-### 호스트 시스템
-
-- **호스트 지정**: 방에 처음 입장한 플레이어
-- **호스트 권한**: 게임 시작 버튼 사용 가능
-- **호스트 승계**: 호스트가 퇴장하면 가장 오래된 플레이어가 새 호스트
-
-```typescript
-if (player?.isHost && this.state.players.size > 0) {
-  const newHost = Array.from(this.state.players.values())[0];
-  newHost.isHost = true;
-}
-```
 
 ### 초기 위치 배치
 
@@ -398,8 +492,9 @@ private checkWinConditions() {
 1. `phase`를 `'ended'`로 변경
 2. `winner`에 승자 저장
 3. 게임 루프 정지
-4. 모든 클라이언트에 `gameEnded` 메시지 전송
-5. 클라이언트에서 5초 후 로비로 복귀
+4. 모든 봇 제거
+5. 모든 클라이언트에 `gameEnded` 메시지 전송
+6. 클라이언트에서 5초 후 메인 메뉴로 복귀
 
 ---
 
@@ -425,7 +520,10 @@ this.updateInterval = setInterval(() => {
 ┌─────────────────────────────────────────────┐
 │               updateGame()                   │
 ├─────────────────────────────────────────────┤
-│ 1. 모든 눈덩이 순회                          │
+│ 1. 봇 업데이트                               │
+│    └── 2초 경과 시 눈덩이 발사               │
+│                                              │
+│ 2. 모든 눈덩이 순회                          │
 │    ├── 위치 업데이트 (velocity 적용)         │
 │    ├── 경계 체크 → 제거                      │
 │    └── 플레이어 충돌 체크                    │
@@ -433,9 +531,9 @@ this.updateInterval = setInterval(() => {
 │        ├── 스턴된 플레이어 → 스킵            │
 │        └── 거리 < 20 → 데미지 적용, 제거     │
 │                                              │
-│ 2. 제거 대상 눈덩이 삭제                     │
+│ 3. 제거 대상 눈덩이 삭제                     │
 │                                              │
-│ 3. 승리 조건 확인                            │
+│ 4. 승리 조건 확인                            │
 └─────────────────────────────────────────────┘
 ```
 
@@ -481,6 +579,12 @@ player.energy = 20;         // 10 → 20
 **더 큰 맵**
 ```typescript
 const MAP_SIZE = 1200;      // 800 → 1200
+```
+
+**봇 공격 빈도 조정**
+```typescript
+// BotController.ts
+const BOT_ATTACK_INTERVAL = 1000;  // 2000 → 1000 (1초)
 ```
 
 ### 주의사항
