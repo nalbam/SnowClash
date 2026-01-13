@@ -109,32 +109,32 @@ export class GameScene extends Phaser.Scene {
     graphics.fillStyle(0xffffff, 1);
     graphics.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
 
-    // Draw diagonal line dividing territories
+    // Draw diagonal line dividing territories (\ shape: top-left to bottom-right)
     graphics.lineStyle(3, 0x000000, 1);
     graphics.beginPath();
     graphics.moveTo(0, 0);
     graphics.lineTo(MAP_SIZE, MAP_SIZE);
     graphics.strokePath();
 
-    // Draw red territory (top-left triangle, above/left of the diagonal)
-    // Triangle vertices: (0,0), (MAP_SIZE,0), (0,MAP_SIZE)
-    // This area satisfies: x + y <= MAP_SIZE
+    // Draw red territory (top-right triangle, above the \ diagonal)
+    // Triangle vertices: (0,0), (MAP_SIZE,0), (MAP_SIZE,MAP_SIZE)
+    // This area satisfies: y <= x
     graphics.fillStyle(0xff0000, 0.1);
     graphics.beginPath();
     graphics.moveTo(0, 0);
     graphics.lineTo(MAP_SIZE, 0);
-    graphics.lineTo(0, MAP_SIZE);
+    graphics.lineTo(MAP_SIZE, MAP_SIZE);
     graphics.closePath();
     graphics.fillPath();
 
-    // Draw blue territory (bottom-right triangle, below/right of the diagonal)
-    // Triangle vertices: (MAP_SIZE,MAP_SIZE), (MAP_SIZE,0), (0,MAP_SIZE)
-    // This area satisfies: x + y >= MAP_SIZE
+    // Draw blue territory (bottom-left triangle, below the \ diagonal)
+    // Triangle vertices: (0,0), (0,MAP_SIZE), (MAP_SIZE,MAP_SIZE)
+    // This area satisfies: y >= x
     graphics.fillStyle(0x0000ff, 0.1);
     graphics.beginPath();
-    graphics.moveTo(MAP_SIZE, MAP_SIZE);
-    graphics.lineTo(MAP_SIZE, 0);
+    graphics.moveTo(0, 0);
     graphics.lineTo(0, MAP_SIZE);
+    graphics.lineTo(MAP_SIZE, MAP_SIZE);
     graphics.closePath();
     graphics.fillPath();
 

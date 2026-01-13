@@ -105,12 +105,13 @@ export class GameRoom extends Room<GameState> {
       snowball.damage = damage;
 
       // Snowballs fire diagonally toward opponent territory
-      // Red team (top-left) shoots bottom-right, Blue team (bottom-right) shoots top-left
+      // Map divided by \ diagonal: Red (top-right, y<=x), Blue (bottom-left, y>=x)
+      // Red team shoots toward bottom-left (−x, +y), Blue team shoots toward top-right (+x, −y)
       if (player.team === 'red') {
-        snowball.velocityX = SNOWBALL_SPEED;
+        snowball.velocityX = -SNOWBALL_SPEED;
         snowball.velocityY = SNOWBALL_SPEED;
       } else {
-        snowball.velocityX = -SNOWBALL_SPEED;
+        snowball.velocityX = SNOWBALL_SPEED;
         snowball.velocityY = -SNOWBALL_SPEED;
       }
 
@@ -212,13 +213,13 @@ export class GameRoom extends Room<GameState> {
     // Initialize player positions
     players.forEach(player => {
       if (player.team === 'red') {
-        // Red team starts in top-left area
-        player.x = Math.random() * (MAP_SIZE * 0.3);
-        player.y = Math.random() * (MAP_SIZE * 0.3);
+        // Red team starts in top-right area (y <= x)
+        player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
+        player.y = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
       } else {
-        // Blue team starts in bottom-right area
-        player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);
-        player.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);
+        // Blue team starts in bottom-left area (y >= x)
+        player.x = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
+        player.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
       }
       player.energy = 10;
       player.isStunned = false;
@@ -303,15 +304,15 @@ export class GameRoom extends Room<GameState> {
   }
 
   private isInPlayerTerritory(x: number, y: number, team: string): boolean {
-    // Map is divided diagonally from top-left to bottom-right
-    // Red team territory: above/left of diagonal (x + y <= MAP_SIZE)
-    // Blue team territory: below/right of diagonal (x + y >= MAP_SIZE)
+    // Map is divided by \ diagonal (top-left to bottom-right)
+    // Red team territory: top-right triangle (y <= x)
+    // Blue team territory: bottom-left triangle (y >= x)
     // Players on the exact diagonal can be in either territory
-    
+
     if (team === 'red') {
-      return x + y <= MAP_SIZE;
+      return y <= x;
     } else {
-      return x + y >= MAP_SIZE;
+      return y >= x;
     }
   }
 }

@@ -57,7 +57,7 @@ Located in `src/server/rooms/GameRoom.ts`:
 
 ## Key Game Mechanics
 
-- **Territory**: Map divided diagonally (top-left to bottom-right). Red team: `x + y <= MAP_SIZE`, Blue team: `x + y >= MAP_SIZE`
+- **Territory**: Map divided by `\` diagonal (top-left to bottom-right). Red team (top-right): `y <= x`, Blue team (bottom-left): `y >= x`
 - **Energy**: Players start with 10 energy, stunned when reaching 0
 - **Phases**: `lobby` → `playing` → `ended`
 - **Host authority**: First player to join becomes host and can start the game

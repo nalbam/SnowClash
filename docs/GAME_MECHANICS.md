@@ -126,42 +126,42 @@ const CHARGED_DAMAGE = 7;
 
 ## 영역 시스템
 
-맵은 대각선으로 두 팀의 영역으로 분할됩니다.
+맵은 `\` 모양 대각선으로 두 팀의 영역으로 분할됩니다.
 
 ### 맵 분할
 
 ```
        0                    800
     0  ┌─────────────────────┐
-       │ ╲                   │
-       │   ╲   Red 영역      │
-       │     ╲  (좌상단)     │
-       │       ╲             │
-       │         ╲           │
-       │           ╲         │
-       │             ╲       │
-       │   Blue 영역   ╲     │
-       │   (우하단)      ╲   │
+       │╲                    │
+       │  ╲    Red 영역      │
+       │    ╲   (우상단)     │
+       │      ╲              │
+       │        ╲            │
+       │          ╲          │
+       │            ╲        │
+       │  Blue 영역   ╲      │
+       │  (좌하단)      ╲    │
   800  └─────────────────────┘
 ```
 
 ### 영역 공식
 
-대각선은 `(0, 0)`에서 `(800, 800)`으로 이어집니다.
+대각선은 `(0, 0)`에서 `(800, 800)`으로 이어집니다. (`\` 모양)
 
 | 팀 | 영역 조건 | 설명 |
 |----|-----------|------|
-| Red | `x + y <= 800` | 대각선 위/왼쪽 |
-| Blue | `x + y >= 800` | 대각선 아래/오른쪽 |
+| Red | `y <= x` | 대각선 위쪽 (우상단 삼각형) |
+| Blue | `y >= x` | 대각선 아래쪽 (좌하단 삼각형) |
 
 **구현 코드**
 
 ```typescript
 private isInPlayerTerritory(x: number, y: number, team: string): boolean {
   if (team === 'red') {
-    return x + y <= MAP_SIZE;  // 800
+    return y <= x;
   } else {
-    return x + y >= MAP_SIZE;
+    return y >= x;
   }
 }
 ```
@@ -239,19 +239,19 @@ if (player?.isHost && this.state.players.size > 0) {
 
 ### 초기 위치 배치
 
-게임 시작 시 팀별로 다른 위치에 배치됩니다.
+게임 시작 시 팀별로 자기 영역의 코너에 배치됩니다.
 
-| 팀 | 시작 영역 | 좌표 범위 |
-|----|-----------|-----------|
-| Red | 좌상단 | (0~240, 0~240) |
-| Blue | 우하단 | (560~800, 560~800) |
+| 팀 | 영역 | 시작 위치 | 좌표 범위 |
+|----|------|-----------|-----------|
+| Red | 우상단 | 우상단 코너 | (560~800, 0~240) |
+| Blue | 좌하단 | 좌하단 코너 | (0~240, 560~800) |
 
 ```typescript
 if (player.team === 'red') {
-  player.x = Math.random() * (MAP_SIZE * 0.3);   // 0 ~ 240
-  player.y = Math.random() * (MAP_SIZE * 0.3);   // 0 ~ 240
-} else {
   player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
+  player.y = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
+} else {
+  player.x = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
   player.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
 }
 ```
@@ -299,30 +299,34 @@ const damage = chargeLevel >= 0.7 ? CHARGED_DAMAGE : NORMAL_DAMAGE;
 
 ### 궤적 (이동 방향)
 
-눈덩이는 팀에 따라 **대각선 방향**으로 이동합니다.
+눈덩이는 팀에 따라 **상대 진영 방향**으로 대각선 이동합니다.
 
-| 팀 | 방향 | 속도 (velocityX, velocityY) |
-|----|------|------------------------------|
-| Red | 우하단 ↘ | (+5, +5) |
-| Blue | 좌상단 ↖ | (-5, -5) |
+| 팀 | 영역 | 발사 방향 | 속도 (velocityX, velocityY) |
+|----|------|-----------|------------------------------|
+| Red | 우상단 | 좌하단 ↙ (Blue 진영으로) | (-5, +5) |
+| Blue | 좌하단 | 우상단 ↗ (Red 진영으로) | (+5, -5) |
 
 ```
-Red팀                           Blue팀
-   ●──→──→──→                      ──→──→──→●
-      ↘                        ↗
-         ↘                  ↗
-            ○             ○
+                    Red 영역 (우상단)
+                         ●
+                        ↙  눈덩이
+                      ↙
+    대각선 경계 (\)  ╲
+                      ↗
+                     ↗  눈덩이
+                    ●
+       Blue 영역 (좌하단)
 ```
 
 **구현 코드**
 
 ```typescript
 if (player.team === 'red') {
-  snowball.velocityX = SNOWBALL_SPEED;   // +5
-  snowball.velocityY = SNOWBALL_SPEED;   // +5
+  snowball.velocityX = -SNOWBALL_SPEED;  // -5 (왼쪽)
+  snowball.velocityY = SNOWBALL_SPEED;   // +5 (아래)
 } else {
-  snowball.velocityX = -SNOWBALL_SPEED;  // -5
-  snowball.velocityY = -SNOWBALL_SPEED;  // -5
+  snowball.velocityX = SNOWBALL_SPEED;   // +5 (오른쪽)
+  snowball.velocityY = -SNOWBALL_SPEED;  // -5 (위)
 }
 ```
 

@@ -11,7 +11,7 @@ A Snowcraft-style 3v3 online multiplayer snowball fight game built with Phaser 3
 - **Ready System**: All players must ready up before game starts
 - **Auto-kick**: Players not ready within 1 minute are automatically removed
 - **Host Controls**: Room creator has game start authority
-- **Diagonal Territory**: Square snow map divided diagonally (top-left to bottom-right)
+- **Diagonal Territory**: Square snow map divided by `\` diagonal (top-left to bottom-right)
 - **Movement**: Keyboard controls (WASD/Arrow keys)
 - **Snowball Mechanics**: 
   - Press Space to throw
@@ -84,8 +84,8 @@ npm start
 
 2. **Playing Phase**:
    - Move your character within your team's territory
-   - Red team: Top-left diagonal half
-   - Blue team: Bottom-right diagonal half
+   - Red team: Top-right diagonal half
+   - Blue team: Bottom-left diagonal half
    - Throw snowballs at opponents
    - Hold Space to charge for more damage
    - Avoid getting hit
