@@ -99,8 +99,12 @@ SnowClash/
 ├── src/
 │   ├── client/              # 클라이언트 코드 (Phaser 3)
 │   │   ├── index.ts         # 진입점, Phaser 설정
+│   │   ├── config.ts        # 서버 연결 설정
 │   │   ├── index.html       # HTML 템플릿
+│   │   ├── assets/          # 에셋 생성
+│   │   │   └── PixelCharacter.ts
 │   │   └── scenes/          # Phaser 씬들
+│   │       ├── MainMenuScene.ts
 │   │       ├── LobbyScene.ts
 │   │       └── GameScene.ts
 │   │
@@ -440,8 +444,8 @@ this.onMessage('selectTeam', (client, message) => {
 - [아키텍처 가이드](./ARCHITECTURE.md)
 - [API 레퍼런스](./API.md)
 - [게임 메카닉](./GAME_MECHANICS.md)
-- [배포 가이드](../DEPLOYMENT.md)
-- [Google OAuth 설정](../GOOGLE_OAUTH_SETUP.md)
+- [배포 가이드](./DEPLOYMENT.md)
+- [Google OAuth 설정](./GOOGLE_OAUTH_SETUP.md)
 
 ---
 

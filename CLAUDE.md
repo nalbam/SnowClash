@@ -37,6 +37,8 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 
 ### Client (Phaser 3)
 - **Entry point**: `src/client/index.ts` - Phaser game config
+- **Config**: `src/client/config.ts` - Server connection settings (wsUrl, apiUrl, auto-detect HTTP/HTTPS)
+- **Assets**: `src/client/assets/PixelCharacter.ts` - Pixel art character textures and animations
 - **Scenes**:
   - `MainMenuScene` - Nickname display, room list, create/join room, quick play
   - `LobbyScene` - Team selection, ready system, player list

@@ -642,8 +642,8 @@ if (this.updateInterval) {
 
 **더 빠른 게임**
 ```typescript
-const PLAYER_SPEED = 5;     // 3 → 5
-const SNOWBALL_SPEED = 8;   // 5 → 8
+const PLAYER_SPEED = 4;     // 2 → 4
+const SNOWBALL_SPEED = 8;   // 4 → 8
 ```
 
 **더 오래 버티기**

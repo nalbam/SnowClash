@@ -254,6 +254,33 @@ const config: Phaser.Types.Core.GameConfig = {
 new Phaser.Game(config);
 ```
 
+### 설정 (`src/client/config.ts`)
+
+서버 연결 설정을 관리합니다.
+
+```typescript
+const SERVER_URL = process.env.SERVER_URL || 'localhost:2567';
+
+// 프로토콜 자동 감지 (HTTPS 환경에서 WSS 사용)
+const isSecure = window.location.protocol === 'https:';
+const wsProtocol = isSecure ? 'wss' : 'ws';
+const httpProtocol = isSecure ? 'https' : 'http';
+
+export const config = {
+  serverUrl: SERVER_URL,
+  wsUrl: `${wsProtocol}://${SERVER_URL}`,
+  apiUrl: `${httpProtocol}://${SERVER_URL}`,
+};
+```
+
+### 캐릭터 에셋 (`src/client/assets/PixelCharacter.ts`)
+
+픽셀 아트 캐릭터 텍스처와 애니메이션을 생성합니다.
+
+- 팀별 캐릭터 텍스처 (red_idle, blue_idle, red_walk, blue_walk, red_stunned, blue_stunned)
+- 눈덩이 텍스처 (일반, 차징)
+- 걷기 애니메이션 정의
+
 ### MainMenuScene (`src/client/scenes/MainMenuScene.ts`)
 
 메인 메뉴 화면을 담당합니다.
@@ -421,6 +448,8 @@ SnowClash/
 │   │   ├── index.ts                 # Phaser 게임 설정
 │   │   ├── config.ts                # 서버 연결 설정
 │   │   ├── index.html               # HTML 템플릿
+│   │   ├── assets/
+│   │   │   └── PixelCharacter.ts    # 픽셀 아트 캐릭터 생성
 │   │   └── scenes/
 │   │       ├── MainMenuScene.ts     # 메인 메뉴 씬
 │   │       ├── LobbyScene.ts        # 로비 씬
