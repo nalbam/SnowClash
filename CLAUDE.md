@@ -119,6 +119,10 @@ SERVER_URL=game.example.com npm run build
 - `REDIS_URL`: Redis server URL for horizontal scaling (optional)
   - If not set, runs in single server mode
   - Format: `redis://[username:password@]host:port`
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
+  - Default: `http://localhost:8080,http://localhost:2567`
+  - Required for production security
+- `NODE_ENV`: Set to `production` for stricter security
 
 ```bash
 # Single server mode (default)
@@ -130,9 +134,22 @@ PORT=3000 npm start
 # With Redis for horizontal scaling
 REDIS_URL=redis://localhost:6379 npm start
 
-# Production with Redis cluster
-REDIS_URL=redis://:password@redis.example.com:6379 PORT=2567 npm start
+# Production with security
+NODE_ENV=production \
+ALLOWED_ORIGINS=https://game.example.com \
+REDIS_URL=redis://:password@redis.example.com:6379 \
+PORT=2567 npm start
 ```
+
+## Security Features
+
+- **Helmet**: Security headers (X-Frame-Options, X-Content-Type-Options, etc.)
+- **CORS**: Restricted to `ALLOWED_ORIGINS` in production
+- **Rate Limiting**:
+  - API: 100 requests per 15 minutes
+  - Room creation: 5 per minute
+- **Input Validation**: Nickname length, room name sanitization
+- **Payload Limit**: 10KB max request body
 
 ### Horizontal Scaling with Redis
 

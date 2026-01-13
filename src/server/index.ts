@@ -4,12 +4,53 @@ import { RedisDriver } from '@colyseus/redis-driver';
 import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { GameRoom } from './rooms/GameRoom';
 import { generateNickname } from './utils/NicknameGenerator';
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// Security: Helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for game assets
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Security: CORS - restrict to allowed origins
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:8080', 'http://localhost:2567'];
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.) in development
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
+// Security: Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const roomCreateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // 5 room creates per minute
+  message: { error: 'Too many room creation requests' },
+});
+
+app.use('/api', apiLimiter);
+app.use(express.json({ limit: '10kb' })); // Limit payload size
 app.use(express.static('public'));
 
 const server = createServer(app);
@@ -50,10 +91,17 @@ app.get('/api/rooms', async (req, res) => {
   }
 });
 
-// REST API: Create a new room
-app.post('/api/rooms', async (req, res) => {
+// REST API: Create a new room (with stricter rate limit)
+app.post('/api/rooms', roomCreateLimiter, async (req, res) => {
   try {
-    const roomName = req.body.roomName || 'Game Room';
+    // Validate room name
+    let roomName = req.body.roomName || 'Game Room';
+    if (typeof roomName !== 'string' || roomName.length > 50) {
+      return res.status(400).json({ error: 'Invalid room name' });
+    }
+    // Sanitize room name
+    roomName = roomName.replace(/[<>]/g, '').trim();
+
     const room = await matchMaker.createRoom('game_room', { roomName });
     res.json({
       roomId: room.roomId,

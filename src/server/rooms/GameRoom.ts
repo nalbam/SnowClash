@@ -11,6 +11,8 @@ const PLAYER_SPEED = 2;
 const SNOWBALL_SPEED = 4;
 const NORMAL_DAMAGE = 4;
 const CHARGED_DAMAGE = 7;
+const MAX_PLAYERS = 6;
+const MAX_NICKNAME_LENGTH = 20;
 
 export class GameRoom extends Room<GameState> {
   private readyTimers: Map<string, NodeJS.Timeout> = new Map();
@@ -128,16 +130,36 @@ export class GameRoom extends Room<GameState> {
   }
 
   onJoin(client: Client, options: any) {
+    // Validate: Check max players
+    const humanPlayers = Array.from(this.state.players.values()).filter(p => !p.isBot);
+    if (humanPlayers.length >= MAX_PLAYERS) {
+      throw new Error('Room is full');
+    }
+
+    // Validate: Game already started
+    if (this.state.phase !== 'lobby') {
+      throw new Error('Game already in progress');
+    }
+
+    // Sanitize nickname
+    let nickname = options.nickname || generateNickname();
+    if (typeof nickname !== 'string') {
+      nickname = generateNickname();
+    }
+    nickname = nickname.replace(/[<>]/g, '').trim().substring(0, MAX_NICKNAME_LENGTH);
+    if (nickname.length === 0) {
+      nickname = generateNickname();
+    }
+
     const player = new PlayerSchema();
     player.sessionId = client.sessionId;
-    player.nickname = options.nickname || generateNickname();
-    player.googleId = options.googleId || '';
-    player.photoUrl = options.photoUrl || '';
+    player.nickname = nickname;
+    player.googleId = typeof options.googleId === 'string' ? options.googleId.substring(0, 100) : '';
+    player.photoUrl = typeof options.photoUrl === 'string' && options.photoUrl.startsWith('https://') ? options.photoUrl.substring(0, 500) : '';
     player.isBot = false;
     player.joinedAt = Date.now();
 
     // First human player is the host (exclude bots)
-    const humanPlayers = Array.from(this.state.players.values()).filter(p => !p.isBot);
     if (humanPlayers.length === 0) {
       player.isHost = true;
     }

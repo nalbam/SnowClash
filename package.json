@@ -23,6 +23,8 @@
     "colyseus.js": "^0.16.22",
     "cors": "^2.8.5",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
     "phaser": "^3.90.0"
   },
   "devDependencies": {
