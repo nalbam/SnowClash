@@ -46,14 +46,17 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 | 상수 | 값 | 단위 | 설명 |
 |------|-----|------|------|
 | `MAP_SIZE` | 600 | 픽셀 | 게임 맵의 가로/세로 크기 |
-| `PLAYER_SPEED` | 3 | px/프레임 | 플레이어 이동 속도 |
-| `SNOWBALL_SPEED` | 5 | px/프레임 | 눈덩이 이동 속도 |
+| `PLAYER_SPEED` | 2 | px/프레임 | 플레이어 이동 속도 |
+| `SNOWBALL_SPEED` | 4 | px/프레임 | 눈덩이 이동 속도 |
 | `NORMAL_DAMAGE` | 4 | 에너지 | 일반 공격 데미지 |
 | `CHARGED_DAMAGE` | 7 | 에너지 | 차징 공격 데미지 |
 | `READY_TIMEOUT` | 60000 | ms (1분) | 준비 타임아웃 |
-| `HIT_RADIUS` | 20 | 픽셀 | 눈덩이 충돌 판정 반경 |
+| `PLAYER_RADIUS` | 15 | 픽셀 | 플레이어 캐릭터 반경 |
+| `SNOWBALL_RADIUS` | 5/9 | 픽셀 | 눈덩이 반경 (일반 5, 차징 9) |
+| `HIT_RADIUS` | 20/24 | 픽셀 | 충돌 판정 반경 (일반 20, 차징 24) |
 | `INITIAL_ENERGY` | 10 | 에너지 | 플레이어 초기 에너지 |
 | `BOT_ATTACK_INTERVAL` | 2000 | ms (2초) | 봇 공격 간격 |
+| `BOT_DIRECTION_CHANGE_INTERVAL` | 1000 | ms (1초) | 봇 방향 변경 간격 |
 
 ### 상수 위치
 
@@ -64,13 +67,14 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 // GameRoom.ts
 const READY_TIMEOUT = 60000;
 const MAP_SIZE = 600;
-const PLAYER_SPEED = 3;
-const SNOWBALL_SPEED = 5;
+const PLAYER_SPEED = 2;
+const SNOWBALL_SPEED = 4;
 const NORMAL_DAMAGE = 4;
 const CHARGED_DAMAGE = 7;
 
 // BotController.ts
 const BOT_ATTACK_INTERVAL = 2000;
+const BOT_DIRECTION_CHANGE_INTERVAL = 1000;
 ```
 
 ---
@@ -192,7 +196,8 @@ if (player?.isHost && this.state.players.size > 0) {
 | 속성 | 값 |
 |------|-----|
 | 닉네임 | `[BOT] {랜덤이름}` (예: `[BOT] SnowBot42`) |
-| 이동 | 없음 (제자리) |
+| 이동 | 1초마다 랜덤 방향으로 이동 (영역 내) |
+| 이동 속도 | 플레이어와 동일 (2 px/프레임) |
 | 공격 | 2초마다 상대 진영 방향으로 눈덩이 발사 |
 | 데미지 | 일반 데미지 (4) |
 | 피격 | 일반 플레이어와 동일 |
@@ -207,6 +212,24 @@ if (player?.isHost && this.state.players.size > 0) {
 ### 봇 행동 로직
 
 ```typescript
+// 1초마다 랜덤 방향 변경
+if (currentTime - lastDirChange >= BOT_DIRECTION_CHANGE_INTERVAL) {
+  const angle = Math.random() * Math.PI * 2;
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+  this.moveDirection.set(botId, { dx, dy });
+}
+
+// 영역 내 이동 (영역 밖으로 나가면 방향 반전)
+const newX = bot.x + dir.dx * PLAYER_SPEED;
+const newY = bot.y + dir.dy * PLAYER_SPEED;
+if (this.isInTerritory(newX, newY, bot.team)) {
+  bot.x = newX;
+  bot.y = newY;
+} else {
+  this.moveDirection.set(botId, { dx: -dir.dx, dy: -dir.dy });
+}
+
 // 2초마다 눈덩이 발사
 if (currentTime - lastAttack >= BOT_ATTACK_INTERVAL) {
   this.botThrowSnowball(botId);
@@ -257,17 +280,30 @@ if (bot.team === 'red') {
 
 | 팀 | 영역 조건 | 설명 |
 |----|-----------|------|
-| Red | `y <= x` | 대각선 위쪽 (우상단 삼각형) |
-| Blue | `y >= x` | 대각선 아래쪽 (좌하단 삼각형) |
+| Red | `y <= x - 15` | 대각선 위쪽 (우상단 삼각형, 15px 패딩) |
+| Blue | `y >= x + 15` | 대각선 아래쪽 (좌하단 삼각형, 15px 패딩) |
+
+**플레이어 크기 패딩**
+
+플레이어 반경(15px)만큼 대각선과 맵 경계에 패딩을 적용하여 캐릭터가 경계를 넘지 않습니다.
 
 **구현 코드**
 
 ```typescript
 private isInPlayerTerritory(x: number, y: number, team: string): boolean {
+  const playerRadius = 15;
+
+  // 맵 경계 패딩
+  if (x < playerRadius || x > MAP_SIZE - playerRadius ||
+      y < playerRadius || y > MAP_SIZE - playerRadius) {
+    return false;
+  }
+
+  // 대각선 기준 패딩
   if (team === 'red') {
-    return y <= x;
+    return y <= x - playerRadius;
   } else {
-    return y >= x;
+    return y >= x + playerRadius;
   }
 }
 ```
@@ -306,7 +342,8 @@ private isInPlayerTerritory(x: number, y: number, team: string): boolean {
 **스턴 상태**
 - 이동 불가
 - 공격 불가
-- 눈덩이에 맞지 않음 (무적)
+- **눈덩이에 맞음 (더미/쉴드 역할)** - 팀원을 보호하는 장벽으로 활용 가능
+- 에너지는 더 이상 감소하지 않음 (이미 0)
 - 게임 종료까지 유지
 
 ### 이동 시스템
@@ -324,7 +361,7 @@ private isInPlayerTerritory(x: number, y: number, team: string): boolean {
 
 ```typescript
 newX = player.x + x * PLAYER_SPEED;  // x: -1, 0, 1
-newY = player.y + y * PLAYER_SPEED;  // PLAYER_SPEED: 3
+newY = player.y + y * PLAYER_SPEED;  // PLAYER_SPEED: 2
 ```
 
 **대각선 이동**
@@ -333,20 +370,35 @@ newY = player.y + y * PLAYER_SPEED;  // PLAYER_SPEED: 3
 
 ### 초기 위치 배치
 
-게임 시작 시 팀별로 자기 영역의 코너에 배치됩니다.
+게임 시작 시 팀별로 자기 영역 내 랜덤 위치에 배치됩니다.
 
-| 팀 | 영역 | 시작 위치 | 좌표 범위 |
-|----|------|-----------|-----------|
-| Red | 우상단 | 우상단 코너 | (420~600, 0~180) |
-| Blue | 좌하단 | 좌하단 코너 | (0~180, 420~600) |
+| 팀 | 영역 | 조건 |
+|----|------|------|
+| Red | 우상단 삼각형 | `y < x - 30` (대각선에서 30px 마진) |
+| Blue | 좌하단 삼각형 | `y > x + 30` (대각선에서 30px 마진) |
 
 ```typescript
+const margin = 30;  // 대각선에서 거리
+const padding = 20; // 맵 경계에서 거리
+
 if (player.team === 'red') {
-  player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 420 ~ 600
-  player.y = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 180
+  // Red team: top-right triangle (y < x - margin)
+  let x, y;
+  do {
+    x = padding + Math.random() * (MAP_SIZE - padding * 2);
+    y = padding + Math.random() * (MAP_SIZE - padding * 2);
+  } while (y >= x - margin);
+  player.x = x;
+  player.y = y;
 } else {
-  player.x = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 180
-  player.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 420 ~ 600
+  // Blue team: bottom-left triangle (y > x + margin)
+  let x, y;
+  do {
+    x = padding + Math.random() * (MAP_SIZE - padding * 2);
+    y = padding + Math.random() * (MAP_SIZE - padding * 2);
+  } while (y <= x + margin);
+  player.x = x;
+  player.y = y;
 }
 ```
 
@@ -397,8 +449,8 @@ const damage = chargeLevel >= 0.7 ? CHARGED_DAMAGE : NORMAL_DAMAGE;
 
 | 팀 | 영역 | 발사 방향 | 속도 (velocityX, velocityY) |
 |----|------|-----------|------------------------------|
-| Red | 우상단 | 좌하단 ↙ (Blue 진영으로) | (-5, +5) |
-| Blue | 좌하단 | 우상단 ↗ (Red 진영으로) | (+5, -5) |
+| Red | 우상단 | 좌하단 ↙ (Blue 진영으로) | (-4, +4) |
+| Blue | 좌하단 | 우상단 ↗ (Red 진영으로) | (+4, -4) |
 
 ```
                     Red 영역 (우상단)
@@ -416,17 +468,22 @@ const damage = chargeLevel >= 0.7 ? CHARGED_DAMAGE : NORMAL_DAMAGE;
 
 ```typescript
 if (player.team === 'red') {
-  snowball.velocityX = -SNOWBALL_SPEED;  // -5 (왼쪽)
-  snowball.velocityY = SNOWBALL_SPEED;   // +5 (아래)
+  snowball.velocityX = -SNOWBALL_SPEED;  // -4 (왼쪽)
+  snowball.velocityY = SNOWBALL_SPEED;   // +4 (아래)
 } else {
-  snowball.velocityX = SNOWBALL_SPEED;   // +5 (오른쪽)
-  snowball.velocityY = -SNOWBALL_SPEED;  // -5 (위)
+  snowball.velocityX = SNOWBALL_SPEED;   // +4 (오른쪽)
+  snowball.velocityY = -SNOWBALL_SPEED;  // -4 (위)
 }
 ```
 
 ### 충돌 판정
 
-**히트 반경**: 20 픽셀
+**원형 충돌 검사**: 플레이어 반경 + 눈덩이 반경
+
+| 눈덩이 종류 | 눈덩이 반경 | 플레이어 반경 | 히트 반경 |
+|------------|------------|--------------|----------|
+| 일반 (4 데미지) | 5px | 15px | 20px |
+| 차징 (7 데미지) | 9px | 15px | 24px |
 
 ```typescript
 const distance = Math.sqrt(
@@ -434,20 +491,30 @@ const distance = Math.sqrt(
   Math.pow(player.y - snowball.y, 2)
 );
 
-if (distance < 20) {  // 충돌!
-  player.energy -= snowball.damage;
+const playerRadius = 15;
+const snowballRadius = snowball.damage >= CHARGED_DAMAGE ? 9 : 5;
+const hitRadius = playerRadius + snowballRadius;
+
+if (distance < hitRadius) {  // 충돌!
+  if (!player.isStunned) {
+    player.energy -= snowball.damage;
+  }
+  // 스턴된 플레이어도 맞지만 에너지 감소 없음 (쉴드 역할)
 }
 ```
 
 **충돌 조건**
-1. 플레이어와 눈덩이 거리가 20픽셀 미만
+1. 플레이어와 눈덩이 거리가 히트 반경 미만
 2. 눈덩이가 **상대 팀** 플레이어를 맞춤 (아군 피해 없음)
-3. 대상이 스턴 상태가 아님
 
 **무시되는 경우**
 - 아군 플레이어
-- 스턴된 플레이어
 - 맵 경계를 벗어난 눈덩이
+
+**스턴된 플레이어 (쉴드 역할)**
+- 눈덩이에 맞음 (눈덩이 제거됨)
+- 에너지 감소 없음
+- 팀원을 보호하는 장벽으로 활용 가능
 
 ### 눈덩이 제거
 
@@ -457,6 +524,17 @@ if (distance < 20) {  // 충돌!
 |------|------|
 | 맵 경계 초과 | x < -100, x > 700, y < -100, y > 700 |
 | 플레이어 적중 | 충돌 판정 성공 시 |
+
+### 파편 효과 (클라이언트)
+
+눈덩이가 플레이어에게 맞으면 파편이 흩어지는 효과가 표시됩니다.
+
+| 속성 | 값 |
+|------|-----|
+| 파편 수 | 6개 |
+| 색상 | 발사 팀 색상 (Red: #ff6666, Blue: #6666ff) |
+| 애니메이션 | 방사형으로 흩어지며 페이드아웃 |
+| 지속 시간 | 400ms |
 
 ---
 
