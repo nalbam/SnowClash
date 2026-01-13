@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Client, Room } from 'colyseus.js';
 import { config } from '../config';
+import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
 
 interface RoomInfo {
   roomId: string;
@@ -21,8 +22,12 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   async create() {
-    this.cameras.main.setBackgroundColor('#1a1a2e');
+    this.cameras.main.setBackgroundColor('#e8f4f8');
     this.client = new Client(config.wsUrl);
+
+    // Generate pixel art textures
+    generateCharacterTextures(this);
+    createCharacterAnimations(this);
 
     // Generate random nickname
     await this.generateNickname();
@@ -54,19 +59,45 @@ export class MainMenuScene extends Phaser.Scene {
     // Title
     this.add.text(centerX, 40, 'SnowClash', {
       fontSize: '48px',
-      color: '#ffffff',
+      color: '#333333',
       fontStyle: 'bold'
     }).setOrigin(0.5);
+
+    // Red team character (left of title)
+    const redCharacter = this.add.sprite(centerX - 200, 40, 'character_red_idle');
+    redCharacter.setScale(2);
+    this.tweens.add({
+      targets: redCharacter,
+      y: 35,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Blue team character (right of title)
+    const blueCharacter = this.add.sprite(centerX + 200, 40, 'character_blue_idle');
+    blueCharacter.setScale(2);
+    blueCharacter.setFlipX(true); // Face toward center
+    this.tweens.add({
+      targets: blueCharacter,
+      y: 35,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      delay: 400 // Offset animation for visual interest
+    });
 
     // Nickname section
     this.add.text(centerX, 100, 'Your Nickname:', {
       fontSize: '18px',
-      color: '#aaaaaa'
+      color: '#666666'
     }).setOrigin(0.5);
 
     this.nicknameText = this.add.text(centerX, 130, this.nickname, {
       fontSize: '24px',
-      color: '#00ff00',
+      color: '#008800',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
@@ -77,7 +108,7 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     changeBtn.on('pointerdown', () => this.changeNickname());
-    changeBtn.on('pointerover', () => changeBtn.setColor('#ffffff'));
+    changeBtn.on('pointerover', () => changeBtn.setColor('#333333'));
     changeBtn.on('pointerout', () => changeBtn.setColor('#888888'));
 
     // Quick Play button
@@ -107,7 +138,7 @@ export class MainMenuScene extends Phaser.Scene {
     // Room list header
     this.add.text(centerX, 280, 'Available Rooms', {
       fontSize: '20px',
-      color: '#ffffff'
+      color: '#333333'
     }).setOrigin(0.5);
 
     // Refresh button (positioned to the right)
@@ -117,7 +148,7 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
 
     refreshBtn.on('pointerdown', () => this.refreshRoomList());
-    refreshBtn.on('pointerover', () => refreshBtn.setColor('#ffffff'));
+    refreshBtn.on('pointerover', () => refreshBtn.setColor('#333333'));
     refreshBtn.on('pointerout', () => refreshBtn.setColor('#888888'));
 
     // Room list container
@@ -163,19 +194,21 @@ export class MainMenuScene extends Phaser.Scene {
 
       // Room background (adjusted for 600px width)
       const bg = this.add.graphics();
-      bg.fillStyle(0x333344, 1);
+      bg.fillStyle(0xffffff, 0.8);
+      bg.lineStyle(1, 0xcccccc, 1);
       bg.fillRoundedRect(20, y, 560, 38, 8);
+      bg.strokeRoundedRect(20, y, 560, 38, 8);
 
       // Room name
       const nameText = this.add.text(35, y + 10, room.roomName, {
         fontSize: '14px',
-        color: '#ffffff'
+        color: '#333333'
       });
 
       // Player count
       const countText = this.add.text(420, y + 10, `${room.playerCount}/${room.maxPlayers}`, {
         fontSize: '14px',
-        color: room.playerCount >= room.maxPlayers ? '#ff6666' : '#66ff66'
+        color: room.playerCount >= room.maxPlayers ? '#cc0000' : '#008800'
       });
 
       // Join button

@@ -1,12 +1,20 @@
 import Phaser from 'phaser';
 import { Room } from 'colyseus.js';
+import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
 
 const MAP_SIZE = 600;
 
+interface PlayerSprite extends Phaser.GameObjects.Sprite {
+  lastX?: number;
+  lastY?: number;
+  isMoving?: boolean;
+}
+
 export class GameScene extends Phaser.Scene {
   private room?: Room;
-  private players: Map<string, Phaser.GameObjects.Graphics> = new Map();
-  private snowballs: Map<string, Phaser.GameObjects.Graphics> = new Map();
+  private players: Map<string, PlayerSprite> = new Map();
+  private playerIndicators: Map<string, Phaser.GameObjects.Graphics> = new Map();
+  private snowballs: Map<string, Phaser.GameObjects.Sprite> = new Map();
   private playerLabels: Map<string, Phaser.GameObjects.Text> = new Map();
   private energyBars: Map<string, Phaser.GameObjects.Graphics> = new Map();
   private currentPlayer?: string;
@@ -29,7 +37,7 @@ export class GameScene extends Phaser.Scene {
   private readonly THROW_COOLDOWN: number = 1000; // 1초 쿨다운
   private readonly MIN_CHARGE_TIME: number = 200; // 최소 0.2초 차징 필요
   private fadingSnowballs: Set<string> = new Set(); // 페이딩 중인 눈덩이 추적
-  private snowballPositions: Map<string, { x: number; y: number; team: string }> = new Map(); // 눈덩이 마지막 위치 저장
+  private snowballPositions: Map<string, { x: number; y: number; team: string; damage: number }> = new Map();
 
   constructor() {
     super({ key: 'GameScene' });
@@ -39,6 +47,7 @@ export class GameScene extends Phaser.Scene {
     this.room = data.room;
     this.listenersSetup = false;
     this.players.clear();
+    this.playerIndicators.clear();
     this.snowballs.clear();
     this.playerLabels.clear();
     this.energyBars.clear();
@@ -48,6 +57,10 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#e8f4f8');
+
+    // Generate pixel art textures
+    generateCharacterTextures(this);
+    createCharacterAnimations(this);
 
     // Draw the map
     this.drawMap();
@@ -145,8 +158,6 @@ export class GameScene extends Phaser.Scene {
     graphics.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
 
     // Draw red territory (top-right triangle, above the \ diagonal)
-    // Triangle vertices: (0,0), (MAP_SIZE,0), (MAP_SIZE,MAP_SIZE)
-    // This area satisfies: y <= x
     graphics.fillStyle(0xff0000, 0.1);
     graphics.beginPath();
     graphics.moveTo(0, 0);
@@ -156,8 +167,6 @@ export class GameScene extends Phaser.Scene {
     graphics.fillPath();
 
     // Draw blue territory (bottom-left triangle, below the \ diagonal)
-    // Triangle vertices: (0,0), (0,MAP_SIZE), (MAP_SIZE,MAP_SIZE)
-    // This area satisfies: y >= x
     graphics.fillStyle(0x0000ff, 0.1);
     graphics.beginPath();
     graphics.moveTo(0, 0);
@@ -264,16 +273,28 @@ export class GameScene extends Phaser.Scene {
   private createPlayer(sessionId: string, player: any) {
     console.log('Creating player:', sessionId, 'team:', player.team, 'pos:', player.x, player.y);
 
-    // Create graphics container for player
-    const graphics = this.add.graphics();
-    this.players.set(sessionId, graphics);
+    const team = player.team || 'red';
+    const textureKey = `character_${team}_idle`;
+
+    // Create sprite for player
+    const sprite = this.add.sprite(player.x, player.y, textureKey) as PlayerSprite;
+    sprite.setScale(1);
+    sprite.lastX = player.x;
+    sprite.lastY = player.y;
+    sprite.isMoving = false;
+    this.players.set(sessionId, sprite);
+
+    // Create indicator for current player
+    const indicator = this.add.graphics();
+    this.playerIndicators.set(sessionId, indicator);
+    this.updatePlayerIndicator(sessionId, player);
 
     // Create player label
-    const label = this.add.text(player.x, player.y - 25, player.nickname || 'Player', {
-      fontSize: '12px',
+    const label = this.add.text(player.x, player.y - 30, player.nickname || 'Player', {
+      fontSize: '10px',
       color: '#000000',
-      backgroundColor: '#ffffff',
-      padding: { x: 4, y: 2 }
+      backgroundColor: '#ffffffcc',
+      padding: { x: 3, y: 1 }
     }).setOrigin(0.5);
     this.playerLabels.set(sessionId, label);
 
@@ -281,51 +302,75 @@ export class GameScene extends Phaser.Scene {
     const energyBar = this.add.graphics();
     this.energyBars.set(sessionId, energyBar);
 
-    // Draw player at current position
-    this.drawPlayer(sessionId, player);
+    // Initial update
+    this.updatePlayer(sessionId, player);
   }
 
-  private drawPlayer(sessionId: string, player: any) {
-    const graphics = this.players.get(sessionId);
-    if (!graphics) return;
+  private updatePlayerIndicator(sessionId: string, player: any) {
+    const indicator = this.playerIndicators.get(sessionId);
+    if (!indicator) return;
+
+    indicator.clear();
 
     const isCurrentPlayer = sessionId === this.currentPlayer;
-    const color = player.team === 'red' ? 0xff0000 : 0x0000ff;
     const isBot = player.isBot;
-    const x = player.x;
-    const y = player.y;
 
-    // Clear previous drawing
-    graphics.clear();
-
-    // Set alpha for stunned players
-    graphics.setAlpha(player.isStunned ? 0.3 : 1);
-
-    // Draw player circle at world position
-    graphics.fillStyle(color, 1);
-    graphics.fillCircle(x, y, 15);
-
-    // Draw border
     if (isCurrentPlayer) {
-      graphics.lineStyle(3, 0xffff00, 1);
-      graphics.strokeCircle(x, y, 15);
+      // Yellow ring for current player
+      indicator.lineStyle(2, 0xffff00, 1);
+      indicator.strokeCircle(player.x, player.y, 20);
     } else if (isBot) {
-      graphics.lineStyle(2, 0x888888, 1);
-      graphics.strokeCircle(x, y, 15);
-    } else {
-      graphics.lineStyle(2, 0x000000, 0.5);
-      graphics.strokeCircle(x, y, 15);
+      // Gray ring for bots
+      indicator.lineStyle(1, 0x888888, 0.5);
+      indicator.strokeCircle(player.x, player.y, 18);
     }
   }
 
   private updatePlayer(sessionId: string, player: any) {
-    // Redraw player at new position
-    this.drawPlayer(sessionId, player);
+    const sprite = this.players.get(sessionId);
+    if (!sprite) return;
+
+    const team = player.team || 'red';
+
+    // Check if player is moving
+    const isMoving = sprite.lastX !== player.x || sprite.lastY !== player.y;
+
+    // Update position
+    sprite.setPosition(player.x, player.y);
+
+    // Determine animation state
+    if (player.isStunned) {
+      // Stunned state
+      const stunnedKey = `character_${team}_stunned`;
+      sprite.setTexture(stunnedKey);
+      sprite.setAlpha(0.6);
+      sprite.anims.stop();
+    } else if (isMoving) {
+      // Walking animation
+      sprite.setAlpha(1);
+      const walkAnim = `${team}_walk`;
+      if (sprite.anims.currentAnim?.key !== walkAnim) {
+        sprite.play(walkAnim);
+      }
+    } else {
+      // Idle state
+      sprite.setAlpha(1);
+      const idleKey = `character_${team}_idle`;
+      sprite.setTexture(idleKey);
+      sprite.anims.stop();
+    }
+
+    // Update last position
+    sprite.lastX = player.x;
+    sprite.lastY = player.y;
+
+    // Update indicator
+    this.updatePlayerIndicator(sessionId, player);
 
     // Update label position
     const label = this.playerLabels.get(sessionId);
     if (label) {
-      label.setPosition(player.x, player.y - 25);
+      label.setPosition(player.x, player.y - 30);
     }
 
     // Update energy bar
@@ -335,30 +380,35 @@ export class GameScene extends Phaser.Scene {
 
       const barWidth = 30;
       const barHeight = 4;
-      // 기절한 플레이어는 체력바 0으로 표시
       const energyPercent = player.isStunned ? 0 : Math.max(0, player.energy / 10);
 
       // Background
       energyBar.fillStyle(0x000000, 0.5);
-      energyBar.fillRect(player.x - barWidth / 2, player.y - 35, barWidth, barHeight);
+      energyBar.fillRect(player.x - barWidth / 2, player.y - 40, barWidth, barHeight);
 
-      // Energy fill (기절 시 표시 안함)
+      // Energy fill
       if (energyPercent > 0) {
         const energyColor = energyPercent > 0.5 ? 0x00ff00 : energyPercent > 0.25 ? 0xffff00 : 0xff0000;
         energyBar.fillStyle(energyColor, 1);
-        energyBar.fillRect(player.x - barWidth / 2, player.y - 35, barWidth * energyPercent, barHeight);
+        energyBar.fillRect(player.x - barWidth / 2, player.y - 40, barWidth * energyPercent, barHeight);
       }
     }
   }
 
   private removePlayer(sessionId: string) {
-    const graphics = this.players.get(sessionId);
+    const sprite = this.players.get(sessionId);
+    const indicator = this.playerIndicators.get(sessionId);
     const label = this.playerLabels.get(sessionId);
     const energyBar = this.energyBars.get(sessionId);
 
-    if (graphics) {
-      graphics.destroy();
+    if (sprite) {
+      sprite.destroy();
       this.players.delete(sessionId);
+    }
+
+    if (indicator) {
+      indicator.destroy();
+      this.playerIndicators.delete(sessionId);
     }
 
     if (label) {
@@ -373,45 +423,42 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createSnowball(id: string, snowball: any) {
-    const graphics = this.add.graphics();
-    this.snowballs.set(id, graphics);
-    this.drawSnowball(id, snowball);
-  }
-
-  private drawSnowball(id: string, snowball: any) {
-    const graphics = this.snowballs.get(id);
-    if (!graphics) return;
-
-    // 페이딩 중인 눈덩이는 다시 그리지 않음
-    if (this.fadingSnowballs.has(id)) return;
-
-    // 위치 저장 (제거 시 파편 효과용)
-    this.snowballPositions.set(id, { x: snowball.x, y: snowball.y, team: snowball.team });
-
-    const color = snowball.team === 'red' ? 0xff0000 : 0x0000ff;
-
-    // Size based on damage (normal=4, charged=7)
-    // Normal: radius 5, Charged: radius 9
+    const team = snowball.team || 'red';
     const isCharged = snowball.damage >= 7;
-    const radius = isCharged ? 9 : 5;
+    const textureKey = `snowball_${team}_${isCharged ? 'charged' : 'normal'}`;
 
-    graphics.clear();
-    graphics.fillStyle(color, 0.8);
-    graphics.fillCircle(snowball.x, snowball.y, radius);
-
-    // Add white outline for visibility
-    graphics.lineStyle(isCharged ? 2 : 1, 0xffffff, 0.8);
-    graphics.strokeCircle(snowball.x, snowball.y, radius);
+    const sprite = this.add.sprite(snowball.x, snowball.y, textureKey);
+    this.snowballs.set(id, sprite);
+    this.snowballPositions.set(id, {
+      x: snowball.x,
+      y: snowball.y,
+      team: snowball.team,
+      damage: snowball.damage
+    });
   }
 
   private updateSnowball(id: string, snowball: any) {
-    this.drawSnowball(id, snowball);
+    const sprite = this.snowballs.get(id);
+    if (!sprite) return;
+
+    // 페이딩 중인 눈덩이는 업데이트하지 않음
+    if (this.fadingSnowballs.has(id)) return;
+
+    sprite.setPosition(snowball.x, snowball.y);
+
+    // 위치 저장
+    this.snowballPositions.set(id, {
+      x: snowball.x,
+      y: snowball.y,
+      team: snowball.team,
+      damage: snowball.damage
+    });
   }
 
   private removeSnowball(id: string, snowball?: any) {
-    const graphics = this.snowballs.get(id);
-    if (graphics) {
-      // 눈덩이 위치와 팀 정보 (저장된 위치 또는 snowball 객체에서)
+    const sprite = this.snowballs.get(id);
+    if (sprite) {
+      // 눈덩이 위치와 팀 정보
       const storedPos = this.snowballPositions.get(id);
       const x = snowball?.x ?? storedPos?.x ?? 0;
       const y = snowball?.y ?? storedPos?.y ?? 0;
@@ -421,7 +468,7 @@ export class GameScene extends Phaser.Scene {
       this.fadingSnowballs.delete(id);
       this.snowballs.delete(id);
       this.snowballPositions.delete(id);
-      graphics.destroy();
+      sprite.destroy();
 
       // 파편 효과 생성
       this.createDebrisEffect(x, y, team);

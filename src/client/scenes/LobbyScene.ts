@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Room } from 'colyseus.js';
+import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
 
 const MAP_SIZE = 600;
 
@@ -24,7 +25,13 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor('#1a1a2e');
+    // Match game scene color scheme
+    this.cameras.main.setBackgroundColor('#e8f4f8');
+
+    // Generate pixel art textures
+    generateCharacterTextures(this);
+    createCharacterAnimations(this);
+
     this.createUI();
     this.setupRoomHandlers();
   }
@@ -35,25 +42,25 @@ export class LobbyScene extends Phaser.Scene {
     // Title and room name at top
     this.add.text(centerX, 20, 'Game Lobby', {
       fontSize: '24px',
-      color: '#ffffff',
+      color: '#333333',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     const roomName = (this.room?.state as any)?.roomName || 'Game Room';
     this.add.text(centerX, 50, roomName, {
       fontSize: '14px',
-      color: '#aaaaaa'
+      color: '#666666'
     }).setOrigin(0.5);
 
     // Back button
     const backBtn = this.add.text(20, 20, '< Back', {
       fontSize: '14px',
-      color: '#888888'
+      color: '#666666'
     }).setInteractive({ useHandCursor: true });
 
     backBtn.on('pointerdown', () => this.leaveRoom());
-    backBtn.on('pointerover', () => backBtn.setColor('#ffffff'));
-    backBtn.on('pointerout', () => backBtn.setColor('#888888'));
+    backBtn.on('pointerover', () => backBtn.setColor('#000000'));
+    backBtn.on('pointerout', () => backBtn.setColor('#666666'));
 
     // Draw team zones (diagonal split like game map)
     this.drawTeamZones();
@@ -74,8 +81,8 @@ export class LobbyScene extends Phaser.Scene {
     // Click instruction
     this.add.text(centerX, 300, 'Click area to change team', {
       fontSize: '11px',
-      color: '#ffffff',
-      backgroundColor: '#00000099',
+      color: '#555555',
+      backgroundColor: '#ffffffcc',
       padding: { x: 8, y: 4 }
     }).setOrigin(0.5);
 
@@ -115,7 +122,7 @@ export class LobbyScene extends Phaser.Scene {
     // Red zone (top-right triangle)
     // Diagonal goes from top-left (0, topY) to bottom-right (width, bottomY)
     this.redZone = this.add.graphics();
-    this.redZone.fillStyle(0xff0000, 0.2);
+    this.redZone.fillStyle(0xff0000, 0.1);
     this.redZone.beginPath();
     this.redZone.moveTo(0, topY);           // Top-left corner
     this.redZone.lineTo(MAP_SIZE, topY);    // Top-right corner
@@ -126,7 +133,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // Blue zone (bottom-left triangle)
     this.blueZone = this.add.graphics();
-    this.blueZone.fillStyle(0x0000ff, 0.2);
+    this.blueZone.fillStyle(0x0000ff, 0.1);
     this.blueZone.beginPath();
     this.blueZone.moveTo(0, topY);          // Top-left corner (diagonal start)
     this.blueZone.lineTo(MAP_SIZE, bottomY); // Bottom-right corner (diagonal end)
@@ -233,24 +240,34 @@ export class LobbyScene extends Phaser.Scene {
 
   private updatePlayerSprite(sessionId: string, player: any) {
     let container = this.playerSprites.get(sessionId);
+    const team = player.team || 'red';
+    const textureKey = `character_${team}_idle`;
 
     if (!container) {
-      // Create new player sprite
+      // Create new player container
       container = this.add.container(0, 0);
 
-      const circle = this.add.graphics();
-      container.add(circle);
+      // Create pixel art sprite
+      const sprite = this.add.sprite(0, 0, textureKey);
+      sprite.setScale(1.2); // Slightly larger for lobby visibility
+      container.add(sprite);
+      container.setData('sprite', sprite);
 
-      const nameText = this.add.text(0, -25, player.nickname, {
+      // Create indicator ring
+      const indicator = this.add.graphics();
+      container.add(indicator);
+      container.setData('indicator', indicator);
+
+      // Create name text
+      const nameText = this.add.text(0, -35, player.nickname, {
         fontSize: '10px',
-        color: '#ffffff',
-        backgroundColor: '#00000088',
+        color: '#000000',
+        backgroundColor: '#ffffffcc',
         padding: { x: 3, y: 1 }
       }).setOrigin(0.5);
       container.add(nameText);
-
-      container.setData('circle', circle);
       container.setData('nameText', nameText);
+
       this.playerSprites.set(sessionId, container);
     }
 
@@ -279,34 +296,40 @@ export class LobbyScene extends Phaser.Scene {
 
     container.setPosition(x, y);
 
-    // Update circle color
-    const circle = container.getData('circle') as Phaser.GameObjects.Graphics;
-    const color = player.team === 'red' ? 0xff0000 : player.team === 'blue' ? 0x0000ff : 0x888888;
+    // Update sprite texture based on team
+    const sprite = container.getData('sprite') as Phaser.GameObjects.Sprite;
+    const newTextureKey = player.team ? `character_${player.team}_idle` : 'character_red_idle';
 
-    circle.clear();
-    circle.fillStyle(color, 1);
-    circle.fillCircle(0, 0, 15);
+    if (sprite.texture.key !== newTextureKey) {
+      sprite.setTexture(newTextureKey);
+    }
 
-    // Border for current player
+    // Update indicator
+    const indicator = container.getData('indicator') as Phaser.GameObjects.Graphics;
+    indicator.clear();
+
     if (isCurrentPlayer) {
-      circle.lineStyle(3, 0xffff00, 1);
-      circle.strokeCircle(0, 0, 15);
+      // Yellow ring for current player
+      indicator.lineStyle(3, 0xffff00, 1);
+      indicator.strokeCircle(0, 0, 22);
     } else if (player.isReady) {
-      circle.lineStyle(2, 0x00ff00, 1);
-      circle.strokeCircle(0, 0, 15);
+      // Green ring for ready players
+      indicator.lineStyle(2, 0x00ff00, 1);
+      indicator.strokeCircle(0, 0, 20);
     }
 
     // Update name with status
     const nameText = container.getData('nameText') as Phaser.GameObjects.Text;
-    const readyIcon = player.isReady ? ' [OK]' : '';
+    const readyIcon = player.isReady ? ' ✓' : '';
     nameText.setText(`${player.nickname}${readyIcon}`);
+    nameText.setColor(isCurrentPlayer ? '#cc8800' : '#000000');
 
     // Draw crown for host
     let crown = container.getData('crown') as Phaser.GameObjects.Text;
     if (player.isHost) {
       if (!crown) {
-        crown = this.add.text(0, -40, '👑', {
-          fontSize: '14px'
+        crown = this.add.text(0, -50, '👑', {
+          fontSize: '16px'
         }).setOrigin(0.5);
         container.add(crown);
         container.setData('crown', crown);
@@ -315,7 +338,23 @@ export class LobbyScene extends Phaser.Scene {
     } else if (crown) {
       crown.setVisible(false);
     }
-    nameText.setColor(isCurrentPlayer ? '#ffff00' : '#ffffff');
+
+    // Add bouncing animation for ready players
+    if (player.isReady && !sprite.getData('bouncing')) {
+      sprite.setData('bouncing', true);
+      this.tweens.add({
+        targets: sprite,
+        y: -5,
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    } else if (!player.isReady && sprite.getData('bouncing')) {
+      sprite.setData('bouncing', false);
+      this.tweens.killTweensOf(sprite);
+      sprite.setY(0);
+    }
   }
 
   private getTeamPlayerIndex(sessionId: string, team: string): number {
@@ -341,6 +380,10 @@ export class LobbyScene extends Phaser.Scene {
   private removePlayerSprite(sessionId: string) {
     const container = this.playerSprites.get(sessionId);
     if (container) {
+      const sprite = container.getData('sprite') as Phaser.GameObjects.Sprite;
+      if (sprite) {
+        this.tweens.killTweensOf(sprite);
+      }
       container.destroy();
       this.playerSprites.delete(sessionId);
     }
