@@ -259,20 +259,22 @@ export class LobbyScene extends Phaser.Scene {
     let x: number, y: number;
 
     if (player.team === 'red') {
-      // Position in red zone (upper-right area)
+      // Red zone: triangle (0,70)-(600,70)-(600,530), centroid ~(400, 223)
+      // Arrange parallel to diagonal from (0,70) to (600,530)
       const index = this.getTeamPlayerIndex(sessionId, 'red');
-      x = 380 + (index % 3) * 60;
-      y = 180 + Math.floor(index / 3) * 50;
+      x = 320 + index * 80;
+      y = 143 + index * 80;
     } else if (player.team === 'blue') {
-      // Position in blue zone (lower-left area)
+      // Blue zone: triangle (0,70)-(0,530)-(600,530), centroid ~(200, 377)
+      // Arrange parallel to diagonal from (0,70) to (600,530)
       const index = this.getTeamPlayerIndex(sessionId, 'blue');
-      x = 80 + (index % 3) * 60;
-      y = 380 + Math.floor(index / 3) * 50;
+      x = 120 + index * 80;
+      y = 297 + index * 80;
     } else {
-      // No team - position in center-left
+      // No team - position along center diagonal
       const index = this.getNoTeamPlayerIndex(sessionId);
-      x = 200 + (index % 2) * 80;
-      y = 280 + Math.floor(index / 2) * 40;
+      x = 220 + index * 80;
+      y = 220 + index * 80;
     }
 
     container.setPosition(x, y);
