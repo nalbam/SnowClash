@@ -1,13 +1,16 @@
 import Phaser from 'phaser';
 import { Room } from 'colyseus.js';
 
+const MAP_SIZE = 600;
+
 export class LobbyScene extends Phaser.Scene {
   private room?: Room;
   private nickname: string = '';
-  private selectedTeam: string = '';
   private isReady: boolean = false;
-  private playerListContainer?: Phaser.GameObjects.Container;
   private listenersSetup: boolean = false;
+  private redZone?: Phaser.GameObjects.Graphics;
+  private blueZone?: Phaser.GameObjects.Graphics;
+  private playerSprites: Map<string, Phaser.GameObjects.Container> = new Map();
 
   constructor() {
     super({ key: 'LobbyScene' });
@@ -17,6 +20,7 @@ export class LobbyScene extends Phaser.Scene {
     this.room = data.room;
     this.nickname = data.nickname || 'Player';
     this.listenersSetup = false;
+    this.playerSprites.clear();
   }
 
   create() {
@@ -26,25 +30,24 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private createUI() {
-    const centerX = this.cameras.main.width / 2;
+    const centerX = MAP_SIZE / 2;
 
-    // Title
-    this.add.text(centerX, 30, 'Game Lobby', {
-      fontSize: '36px',
+    // Title and room name at top
+    this.add.text(centerX, 20, 'Game Lobby', {
+      fontSize: '24px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Room name
-    const roomName = this.room?.state?.roomName || 'Game Room';
-    this.add.text(centerX, 70, roomName, {
-      fontSize: '20px',
+    const roomName = (this.room?.state as any)?.roomName || 'Game Room';
+    this.add.text(centerX, 50, roomName, {
+      fontSize: '14px',
       color: '#aaaaaa'
     }).setOrigin(0.5);
 
     // Back button
-    const backBtn = this.add.text(30, 30, '< Back', {
-      fontSize: '18px',
+    const backBtn = this.add.text(20, 20, '< Back', {
+      fontSize: '14px',
       color: '#888888'
     }).setInteractive({ useHandCursor: true });
 
@@ -52,103 +55,144 @@ export class LobbyScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#ffffff'));
     backBtn.on('pointerout', () => backBtn.setColor('#888888'));
 
-    // Team selection header
-    this.add.text(centerX, 110, 'Select Your Team', {
-      fontSize: '20px',
-      color: '#ffffff'
+    // Draw team zones (diagonal split like game map)
+    this.drawTeamZones();
+
+    // Team labels (positioned in their zones)
+    this.add.text(480, 150, 'RED', {
+      fontSize: '28px',
+      color: '#ff0000',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setAlpha(0.4);
+
+    this.add.text(120, 450, 'BLUE', {
+      fontSize: '28px',
+      color: '#0000ff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setAlpha(0.4);
+
+    // Click instruction
+    this.add.text(centerX, 300, 'Click area to change team', {
+      fontSize: '11px',
+      color: '#ffffff',
+      backgroundColor: '#00000099',
+      padding: { x: 8, y: 4 }
     }).setOrigin(0.5);
 
-    // Red team button
-    const redButton = this.add.text(centerX - 100, 150, 'Red Team', {
-      fontSize: '20px',
-      color: '#ffffff',
-      backgroundColor: '#cc0000',
-      padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    redButton.on('pointerdown', () => this.selectTeam('red'));
-
-    // Blue team button
-    const blueButton = this.add.text(centerX + 100, 150, 'Blue Team', {
-      fontSize: '20px',
-      color: '#ffffff',
-      backgroundColor: '#0000cc',
-      padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    blueButton.on('pointerdown', () => this.selectTeam('blue'));
+    // Bottom UI panel
+    const panelY = MAP_SIZE - 60;
 
     // Ready button
-    const readyButton = this.add.text(centerX, 210, 'Ready', {
-      fontSize: '22px',
+    const readyButton = this.add.text(centerX - 100, panelY, 'Ready', {
+      fontSize: '18px',
       color: '#ffffff',
       backgroundColor: '#006600',
-      padding: { x: 30, y: 12 }
+      padding: { x: 20, y: 8 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     readyButton.on('pointerdown', () => this.toggleReady());
 
-    // Start button (host only)
-    const startButton = this.add.text(centerX, 270, 'Start Game', {
-      fontSize: '24px',
+    // Start button (host only, hidden by default)
+    const startButton = this.add.text(centerX + 100, panelY, 'Start', {
+      fontSize: '18px',
       color: '#ffffff',
       backgroundColor: '#ff8800',
-      padding: { x: 40, y: 15 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      padding: { x: 20, y: 8 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
 
     startButton.on('pointerdown', () => this.startGame());
 
     // Store references
-    this.data.set('redButton', redButton);
-    this.data.set('blueButton', blueButton);
     this.data.set('readyButton', readyButton);
     this.data.set('startButton', startButton);
+  }
 
-    // Player list section
-    this.add.text(centerX, 320, 'Players', {
-      fontSize: '18px',
-      color: '#ffffff'
-    }).setOrigin(0.5);
+  private drawTeamZones() {
+    const topY = 70;      // Top margin for title
+    const bottomY = 530;  // Bottom margin for buttons (600 - 70)
+    const height = bottomY - topY;  // 460px available height
 
-    // Team columns (adjusted for 600px width)
-    this.add.text(150, 350, 'Red Team', {
-      fontSize: '14px',
-      color: '#ff6666'
-    }).setOrigin(0.5);
+    // Red zone (top-right triangle)
+    // Diagonal goes from top-left (0, topY) to bottom-right (width, bottomY)
+    this.redZone = this.add.graphics();
+    this.redZone.fillStyle(0xff0000, 0.2);
+    this.redZone.beginPath();
+    this.redZone.moveTo(0, topY);           // Top-left corner
+    this.redZone.lineTo(MAP_SIZE, topY);    // Top-right corner
+    this.redZone.lineTo(MAP_SIZE, bottomY); // Bottom-right corner
+    this.redZone.lineTo(0, topY);           // Back to top-left (diagonal)
+    this.redZone.closePath();
+    this.redZone.fillPath();
 
-    this.add.text(450, 350, 'Blue Team', {
-      fontSize: '14px',
-      color: '#6666ff'
-    }).setOrigin(0.5);
+    // Blue zone (bottom-left triangle)
+    this.blueZone = this.add.graphics();
+    this.blueZone.fillStyle(0x0000ff, 0.2);
+    this.blueZone.beginPath();
+    this.blueZone.moveTo(0, topY);          // Top-left corner (diagonal start)
+    this.blueZone.lineTo(MAP_SIZE, bottomY); // Bottom-right corner (diagonal end)
+    this.blueZone.lineTo(0, bottomY);       // Bottom-left corner
+    this.blueZone.closePath();
+    this.blueZone.fillPath();
 
-    // Player list container
-    this.playerListContainer = this.add.container(0, 370);
+    // Diagonal line
+    const line = this.add.graphics();
+    line.lineStyle(2, 0xffffff, 0.5);
+    line.beginPath();
+    line.moveTo(0, topY);
+    line.lineTo(MAP_SIZE, bottomY);
+    line.strokePath();
+
+    // Make zones clickable
+    // Red zone: upper-right area
+    const redHitArea = this.add.zone(MAP_SIZE * 0.65, topY + height * 0.35, MAP_SIZE * 0.6, height * 0.5);
+    redHitArea.setInteractive({ useHandCursor: true });
+    redHitArea.on('pointerdown', () => this.selectTeam('red'));
+
+    // Blue zone: lower-left area
+    const blueHitArea = this.add.zone(MAP_SIZE * 0.35, topY + height * 0.65, MAP_SIZE * 0.6, height * 0.5);
+    blueHitArea.setInteractive({ useHandCursor: true });
+    blueHitArea.on('pointerdown', () => this.selectTeam('blue'));
   }
 
   private setupRoomHandlers() {
     if (!this.room) return;
 
     this.room.onStateChange((state) => {
-      // Ignore if scene is no longer active
       if (!this.scene.isActive('LobbyScene')) return;
 
-      // Setup collection listeners on first state sync
       if (!this.listenersSetup && state.players && typeof state.players.onAdd === 'function') {
         this.listenersSetup = true;
 
+        // Sync existing players first
+        state.players.forEach((player: any, sessionId: string) => {
+          this.updatePlayerSprite(sessionId, player);
+          if (typeof player.onChange === 'function') {
+            player.onChange(() => {
+              if (this.scene.isActive('LobbyScene')) {
+                this.updatePlayers();
+              }
+            });
+          }
+        });
+
         state.players.onAdd((player: any, sessionId: string) => {
           if (!this.scene.isActive('LobbyScene')) return;
-          this.updatePlayerList();
-          player.onChange(() => this.updatePlayerList());
+          this.updatePlayers();
+          player.onChange(() => {
+            if (this.scene.isActive('LobbyScene')) {
+              this.updatePlayers();
+            }
+          });
         });
 
         state.players.onRemove((player: any, sessionId: string) => {
           if (!this.scene.isActive('LobbyScene')) return;
-          this.updatePlayerList();
+          this.removePlayerSprite(sessionId);
+          this.updatePlayers();
         });
       }
 
-      this.updatePlayerList();
+      this.updatePlayers();
 
       if (state.phase === 'playing') {
         this.scene.start('GameScene', { room: this.room });
@@ -159,101 +203,158 @@ export class LobbyScene extends Phaser.Scene {
       console.error('Server error:', message);
     });
 
-    this.room.onMessage('playerKicked', (message) => {
-      console.log('Player kicked:', message);
-    });
-
-    this.room.onMessage('gameEnded', (message) => {
-      console.log('Game ended. Winner:', message.winner);
+    // Force initial sync after a short delay
+    this.time.delayedCall(100, () => {
+      if (this.room?.state) {
+        const state = this.room.state as any;
+        if (state.players) {
+          state.players.forEach((player: any, sessionId: string) => {
+            this.updatePlayerSprite(sessionId, player);
+          });
+        }
+      }
     });
   }
 
-  private updatePlayerList() {
-    // Check if scene is still active
+  private updatePlayers() {
     if (!this.scene.isActive('LobbyScene')) return;
-    if (!this.playerListContainer || !this.room || !this.room.state || !this.room.state.players) return;
+    if (!this.room || !this.room.state) return;
 
-    this.playerListContainer.removeAll(true);
+    const state = this.room.state as any;
+    if (!state.players) return;
 
-    const players = Array.from(this.room.state.players.values());
-    const redPlayers = players.filter((p: any) => p.team === 'red');
-    const bluePlayers = players.filter((p: any) => p.team === 'blue');
-    const noTeam = players.filter((p: any) => !p.team);
-
-    // Draw red team players (x=150 for 600px width)
-    redPlayers.forEach((player: any, index: number) => {
-      const y = index * 25;
-      const isCurrentPlayer = player.sessionId === this.room?.sessionId;
-      const displayName = player.nickname;
-      const nameColor = isCurrentPlayer ? '#ffff00' : '#ffffff';
-      const readyIcon = player.isReady ? ' [OK]' : '';
-      const hostIcon = player.isHost ? ' [H]' : '';
-
-      const text = this.add.text(150, y, `${displayName}${hostIcon}${readyIcon}`, {
-        fontSize: '12px',
-        color: nameColor
-      }).setOrigin(0.5);
-
-      this.playerListContainer!.add(text);
+    // Update player positions based on team
+    state.players.forEach((player: any, sessionId: string) => {
+      this.updatePlayerSprite(sessionId, player);
     });
 
-    // Draw blue team players (x=450 for 600px width)
-    bluePlayers.forEach((player: any, index: number) => {
-      const y = index * 25;
-      const isCurrentPlayer = player.sessionId === this.room?.sessionId;
-      const displayName = player.nickname;
-      const nameColor = isCurrentPlayer ? '#ffff00' : '#ffffff';
-      const readyIcon = player.isReady ? ' [OK]' : '';
-      const hostIcon = player.isHost ? ' [H]' : '';
-
-      const text = this.add.text(450, y, `${displayName}${hostIcon}${readyIcon}`, {
-        fontSize: '12px',
-        color: nameColor
-      }).setOrigin(0.5);
-
-      this.playerListContainer!.add(text);
-    });
-
-    // Draw players without team (x=300 center for 600px width)
-    noTeam.forEach((player: any, index: number) => {
-      const y = 90 + index * 22;
-      const isCurrentPlayer = player.sessionId === this.room?.sessionId;
-      const nameColor = isCurrentPlayer ? '#ffff00' : '#888888';
-
-      const text = this.add.text(300, y, `${player.nickname} (no team)`, {
-        fontSize: '11px',
-        color: nameColor
-      }).setOrigin(0.5);
-
-      this.playerListContainer!.add(text);
-    });
-
-    // Update button styles based on current player state
     this.updateButtonStyles();
   }
 
-  private updateButtonStyles() {
-    // Check if scene is still active
-    if (!this.scene.isActive('LobbyScene')) return;
-    if (!this.room || !this.room.state || !this.room.state.players) return;
+  private updatePlayerSprite(sessionId: string, player: any) {
+    let container = this.playerSprites.get(sessionId);
 
-    const currentPlayer = this.room.state.players.get(this.room.sessionId);
-    if (!currentPlayer) return;
+    if (!container) {
+      // Create new player sprite
+      container = this.add.container(0, 0);
 
-    const redButton = this.data.get('redButton') as Phaser.GameObjects.Text;
-    const blueButton = this.data.get('blueButton') as Phaser.GameObjects.Text;
-    const readyButton = this.data.get('readyButton') as Phaser.GameObjects.Text;
+      const circle = this.add.graphics();
+      container.add(circle);
 
-    // Update team button styles
-    if (currentPlayer.team === 'red') {
-      redButton.setStyle({ backgroundColor: '#ff0000', fontStyle: 'bold' });
-      blueButton.setStyle({ backgroundColor: '#0000cc', fontStyle: 'normal' });
-    } else if (currentPlayer.team === 'blue') {
-      redButton.setStyle({ backgroundColor: '#cc0000', fontStyle: 'normal' });
-      blueButton.setStyle({ backgroundColor: '#0000ff', fontStyle: 'bold' });
+      const nameText = this.add.text(0, -25, player.nickname, {
+        fontSize: '10px',
+        color: '#ffffff',
+        backgroundColor: '#00000088',
+        padding: { x: 3, y: 1 }
+      }).setOrigin(0.5);
+      container.add(nameText);
+
+      container.setData('circle', circle);
+      container.setData('nameText', nameText);
+      this.playerSprites.set(sessionId, container);
     }
 
-    // Update ready button style
+    // Update position based on team
+    const isCurrentPlayer = sessionId === this.room?.sessionId;
+    let x: number, y: number;
+
+    if (player.team === 'red') {
+      // Position in red zone (upper-right area)
+      const index = this.getTeamPlayerIndex(sessionId, 'red');
+      x = 380 + (index % 3) * 60;
+      y = 180 + Math.floor(index / 3) * 50;
+    } else if (player.team === 'blue') {
+      // Position in blue zone (lower-left area)
+      const index = this.getTeamPlayerIndex(sessionId, 'blue');
+      x = 80 + (index % 3) * 60;
+      y = 380 + Math.floor(index / 3) * 50;
+    } else {
+      // No team - position in center-left
+      const index = this.getNoTeamPlayerIndex(sessionId);
+      x = 200 + (index % 2) * 80;
+      y = 280 + Math.floor(index / 2) * 40;
+    }
+
+    container.setPosition(x, y);
+
+    // Update circle color
+    const circle = container.getData('circle') as Phaser.GameObjects.Graphics;
+    const color = player.team === 'red' ? 0xff0000 : player.team === 'blue' ? 0x0000ff : 0x888888;
+
+    circle.clear();
+    circle.fillStyle(color, 1);
+    circle.fillCircle(0, 0, 15);
+
+    // Border for current player
+    if (isCurrentPlayer) {
+      circle.lineStyle(3, 0xffff00, 1);
+      circle.strokeCircle(0, 0, 15);
+    } else if (player.isReady) {
+      circle.lineStyle(2, 0x00ff00, 1);
+      circle.strokeCircle(0, 0, 15);
+    }
+
+    // Update name with status
+    const nameText = container.getData('nameText') as Phaser.GameObjects.Text;
+    const readyIcon = player.isReady ? ' [OK]' : '';
+    nameText.setText(`${player.nickname}${readyIcon}`);
+
+    // Draw crown for host
+    let crown = container.getData('crown') as Phaser.GameObjects.Text;
+    if (player.isHost) {
+      if (!crown) {
+        crown = this.add.text(0, -40, '👑', {
+          fontSize: '14px'
+        }).setOrigin(0.5);
+        container.add(crown);
+        container.setData('crown', crown);
+      }
+      crown.setVisible(true);
+    } else if (crown) {
+      crown.setVisible(false);
+    }
+    nameText.setColor(isCurrentPlayer ? '#ffff00' : '#ffffff');
+  }
+
+  private getTeamPlayerIndex(sessionId: string, team: string): number {
+    if (!this.room?.state) return 0;
+    const state = this.room.state as any;
+    const entries = Array.from(state.players.entries()) as [string, any][];
+    const teamPlayers = entries
+      .filter(([_, p]) => p.team === team)
+      .map(([id, _]) => id);
+    return teamPlayers.indexOf(sessionId);
+  }
+
+  private getNoTeamPlayerIndex(sessionId: string): number {
+    if (!this.room?.state) return 0;
+    const state = this.room.state as any;
+    const entries = Array.from(state.players.entries()) as [string, any][];
+    const noTeamPlayers = entries
+      .filter(([_, p]) => !p.team)
+      .map(([id, _]) => id);
+    return noTeamPlayers.indexOf(sessionId);
+  }
+
+  private removePlayerSprite(sessionId: string) {
+    const container = this.playerSprites.get(sessionId);
+    if (container) {
+      container.destroy();
+      this.playerSprites.delete(sessionId);
+    }
+  }
+
+  private updateButtonStyles() {
+    if (!this.scene.isActive('LobbyScene')) return;
+    if (!this.room?.state) return;
+
+    const state = this.room.state as any;
+    const currentPlayer = state.players?.get(this.room.sessionId);
+    if (!currentPlayer) return;
+
+    const readyButton = this.data.get('readyButton') as Phaser.GameObjects.Text;
+    const startButton = this.data.get('startButton') as Phaser.GameObjects.Text;
+
     if (currentPlayer.isReady) {
       readyButton.setText('Not Ready');
       readyButton.setStyle({ backgroundColor: '#00aa00', fontStyle: 'bold' });
@@ -261,19 +362,23 @@ export class LobbyScene extends Phaser.Scene {
       readyButton.setText('Ready');
       readyButton.setStyle({ backgroundColor: '#006600', fontStyle: 'normal' });
     }
+
+    // Show start button only for host
+    if (startButton) {
+      startButton.setVisible(currentPlayer.isHost);
+    }
   }
 
   private selectTeam(team: string) {
     if (!this.room) return;
-
-    this.selectedTeam = team;
     this.room.send('selectTeam', { team });
   }
 
   private toggleReady() {
-    if (!this.room || !this.room.state || !this.room.state.players) return;
+    if (!this.room?.state) return;
 
-    const currentPlayer = this.room.state.players.get(this.room.sessionId);
+    const state = this.room.state as any;
+    const currentPlayer = state.players?.get(this.room.sessionId);
     if (!currentPlayer || !currentPlayer.team) {
       console.log('Please select a team first');
       return;

@@ -142,6 +142,15 @@ export class GameRoom extends Room<GameState> {
       player.isHost = true;
     }
 
+    // Auto-assign team (to team with fewer players)
+    const redCount = Array.from(this.state.players.values()).filter(p => p.team === 'red').length;
+    const blueCount = Array.from(this.state.players.values()).filter(p => p.team === 'blue').length;
+    if (redCount <= blueCount) {
+      player.team = 'red';
+    } else {
+      player.team = 'blue';
+    }
+
     this.state.players.set(client.sessionId, player);
 
     // Set ready timeout
