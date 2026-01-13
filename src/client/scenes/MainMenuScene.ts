@@ -105,15 +105,15 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Room list header
     this.add.text(centerX, 280, 'Available Rooms', {
-      fontSize: '24px',
+      fontSize: '20px',
       color: '#ffffff'
     }).setOrigin(0.5);
 
-    // Refresh button
-    const refreshBtn = this.add.text(centerX + 120, 280, '[Refresh]', {
-      fontSize: '14px',
+    // Refresh button (positioned to the right)
+    const refreshBtn = this.add.text(560, 280, '[Refresh]', {
+      fontSize: '12px',
       color: '#888888'
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
 
     refreshBtn.on('pointerdown', () => this.refreshRoomList());
     refreshBtn.on('pointerover', () => refreshBtn.setColor('#ffffff'));
