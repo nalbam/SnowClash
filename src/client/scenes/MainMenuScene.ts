@@ -43,7 +43,17 @@ export class MainMenuScene extends Phaser.Scene {
     });
   }
 
-  private async generateNickname() {
+  private async generateNickname(forceNew: boolean = false) {
+    // Check localStorage first (unless forcing new nickname)
+    if (!forceNew) {
+      const savedNickname = localStorage.getItem('snowclash_nickname');
+      if (savedNickname) {
+        this.nickname = savedNickname;
+        return;
+      }
+    }
+
+    // Generate new nickname from API
     try {
       const response = await fetch(`${config.apiUrl}/api/nickname`);
       const data = await response.json() as { nickname: string };
@@ -51,6 +61,9 @@ export class MainMenuScene extends Phaser.Scene {
     } catch (error) {
       this.nickname = 'Player' + Math.floor(Math.random() * 1000);
     }
+
+    // Save to localStorage
+    localStorage.setItem('snowclash_nickname', this.nickname);
   }
 
   private createUI() {
@@ -156,7 +169,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private async changeNickname() {
-    await this.generateNickname();
+    await this.generateNickname(true); // Force new nickname
     if (this.nicknameText) {
       this.nicknameText.setText(this.nickname);
     }
