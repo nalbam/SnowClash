@@ -116,6 +116,42 @@ SERVER_URL=game.example.com npm run build
 
 ### Server (runtime)
 - `PORT`: Server port (default: `2567`)
+- `REDIS_URL`: Redis server URL for horizontal scaling (optional)
+  - If not set, runs in single server mode
+  - Format: `redis://[username:password@]host:port`
+
 ```bash
+# Single server mode (default)
+npm start
+
+# With custom port
 PORT=3000 npm start
+
+# With Redis for horizontal scaling
+REDIS_URL=redis://localhost:6379 npm start
+
+# Production with Redis cluster
+REDIS_URL=redis://:password@redis.example.com:6379 PORT=2567 npm start
 ```
+
+### Horizontal Scaling with Redis
+
+When `REDIS_URL` is set, multiple server instances share room information:
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│    Server 1     │     │    Server 2     │
+│  REDIS_URL=...  │     │  REDIS_URL=...  │
+│  PORT=2567      │     │  PORT=2568      │
+└────────┬────────┘     └────────┬────────┘
+         │                       │
+         └───────────┬───────────┘
+                     │
+              ┌──────▼──────┐
+              │    Redis    │
+              └─────────────┘
+```
+
+- **RedisPresence**: Shares room metadata across servers
+- **RedisDriver**: Enables room queries across all servers
+- **Load Balancer**: Required for production (Nginx with ip_hash recommended)

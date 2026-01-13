@@ -1,4 +1,6 @@
-import { Server, matchMaker } from 'colyseus';
+import { Server, matchMaker, ServerOptions } from 'colyseus';
+import { RedisPresence } from '@colyseus/redis-presence';
+import { RedisDriver } from '@colyseus/redis-driver';
 import { createServer } from 'http';
 import express from 'express';
 import cors from 'cors';
@@ -11,9 +13,23 @@ app.use(express.json());
 app.use(express.static('public'));
 
 const server = createServer(app);
-const gameServer = new Server({
+
+// Redis configuration (optional - for horizontal scaling)
+const REDIS_URL = process.env.REDIS_URL;
+
+const serverOptions: ServerOptions = {
   server: server,
-});
+};
+
+if (REDIS_URL) {
+  console.log(`Redis enabled: ${REDIS_URL}`);
+  serverOptions.presence = new RedisPresence(REDIS_URL);
+  serverOptions.driver = new RedisDriver(REDIS_URL);
+} else {
+  console.log('Redis not configured - running in single server mode');
+}
+
+const gameServer = new Server(serverOptions);
 
 gameServer.define('game_room', GameRoom);
 
