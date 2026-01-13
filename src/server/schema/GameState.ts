@@ -8,4 +8,6 @@ export class GameState extends Schema {
   @type('string') phase: string = 'lobby'; // 'lobby', 'playing', 'ended'
   @type('string') winner: string = ''; // 'red', 'blue', or ''
   @type('number') mapSize: number = 800;
+  @type('string') roomName: string = '';
+  @type('number') botCount: number = 0;
 }

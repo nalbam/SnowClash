@@ -1,167 +1,150 @@
 import Phaser from 'phaser';
-import { Client, Room } from 'colyseus.js';
-
-declare global {
-  interface Window {
-    google: any;
-  }
-}
+import { Room } from 'colyseus.js';
 
 export class LobbyScene extends Phaser.Scene {
-  private client?: Client;
   private room?: Room;
-  private googleUser: any = null;
   private nickname: string = '';
   private selectedTeam: string = '';
   private isReady: boolean = false;
+  private playerListContainer?: Phaser.GameObjects.Container;
+  private listenersSetup: boolean = false;
 
   constructor() {
     super({ key: 'LobbyScene' });
   }
 
-  preload() {
-    // Preload assets if needed
+  init(data: any) {
+    this.room = data.room;
+    this.nickname = data.nickname || 'Player';
+    this.listenersSetup = false;
   }
 
   create() {
-    this.cameras.main.setBackgroundColor('#ffffff');
-
-    // Create UI elements
+    this.cameras.main.setBackgroundColor('#1a1a2e');
     this.createUI();
-    this.initGoogleSignIn();
-    this.connectToServer();
+    this.setupRoomHandlers();
   }
 
   private createUI() {
     const centerX = this.cameras.main.width / 2;
-    const centerY = this.cameras.main.height / 2;
 
     // Title
-    this.add.text(centerX, 50, 'SnowClash', {
-      fontSize: '48px',
-      color: '#000000',
+    this.add.text(centerX, 30, 'Game Lobby', {
+      fontSize: '36px',
+      color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Google Sign In button placeholder
-    this.add.text(centerX, 150, 'Sign in with Google', {
+    // Room name
+    const roomName = this.room?.state?.roomName || 'Game Room';
+    this.add.text(centerX, 70, roomName, {
       fontSize: '20px',
-      color: '#000000',
-      backgroundColor: '#4285f4',
-      padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setInteractive()
-      .on('pointerdown', () => this.handleGoogleSignIn());
+      color: '#aaaaaa'
+    }).setOrigin(0.5);
 
-    // Profile section
-    const profileY = 250;
-    this.add.text(100, profileY, 'Nickname:', {
+    // Back button
+    const backBtn = this.add.text(30, 30, '< Back', {
       fontSize: '18px',
-      color: '#000000'
-    });
+      color: '#888888'
+    }).setInteractive({ useHandCursor: true });
 
-    // Team selection
-    const teamY = 350;
-    this.add.text(centerX, teamY - 30, 'Select Team:', {
-      fontSize: '24px',
-      color: '#000000'
+    backBtn.on('pointerdown', () => this.leaveRoom());
+    backBtn.on('pointerover', () => backBtn.setColor('#ffffff'));
+    backBtn.on('pointerout', () => backBtn.setColor('#888888'));
+
+    // Team selection header
+    this.add.text(centerX, 110, 'Select Your Team', {
+      fontSize: '20px',
+      color: '#ffffff'
     }).setOrigin(0.5);
 
     // Red team button
-    const redButton = this.add.text(centerX - 100, teamY, 'Red Team', {
+    const redButton = this.add.text(centerX - 100, 150, 'Red Team', {
       fontSize: '20px',
       color: '#ffffff',
-      backgroundColor: '#ff0000',
+      backgroundColor: '#cc0000',
       padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setInteractive()
-      .on('pointerdown', () => this.selectTeam('red'));
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    redButton.on('pointerdown', () => this.selectTeam('red'));
 
     // Blue team button
-    const blueButton = this.add.text(centerX + 100, teamY, 'Blue Team', {
+    const blueButton = this.add.text(centerX + 100, 150, 'Blue Team', {
       fontSize: '20px',
       color: '#ffffff',
-      backgroundColor: '#0000ff',
+      backgroundColor: '#0000cc',
       padding: { x: 20, y: 10 }
-    }).setOrigin(0.5).setInteractive()
-      .on('pointerdown', () => this.selectTeam('blue'));
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    blueButton.on('pointerdown', () => this.selectTeam('blue'));
 
     // Ready button
-    const readyButton = this.add.text(centerX, 450, 'Ready', {
+    const readyButton = this.add.text(centerX, 210, 'Ready', {
+      fontSize: '22px',
+      color: '#ffffff',
+      backgroundColor: '#006600',
+      padding: { x: 30, y: 12 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    readyButton.on('pointerdown', () => this.toggleReady());
+
+    // Start button (host only)
+    const startButton = this.add.text(centerX, 270, 'Start Game', {
       fontSize: '24px',
       color: '#ffffff',
-      backgroundColor: '#00aa00',
-      padding: { x: 30, y: 15 }
-    }).setOrigin(0.5).setInteractive()
-      .on('pointerdown', () => this.toggleReady());
-
-    // Start button (only visible to host)
-    const startButton = this.add.text(centerX, 550, 'Start Game', {
-      fontSize: '28px',
-      color: '#ffffff',
       backgroundColor: '#ff8800',
-      padding: { x: 40, y: 20 }
-    }).setOrigin(0.5).setInteractive()
-      .on('pointerdown', () => this.startGame());
+      padding: { x: 40, y: 15 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    startButton.on('pointerdown', () => this.startGame());
 
     // Store references
     this.data.set('redButton', redButton);
     this.data.set('blueButton', blueButton);
     this.data.set('readyButton', readyButton);
     this.data.set('startButton', startButton);
-  }
 
-  private initGoogleSignIn() {
-    // This would be initialized with actual Google OAuth
-    // For demo purposes, we'll use a simplified version
-    console.log('Google Sign In initialized');
-  }
+    // Player list section
+    this.add.text(centerX, 330, 'Players', {
+      fontSize: '20px',
+      color: '#ffffff'
+    }).setOrigin(0.5);
 
-  private handleGoogleSignIn() {
-    // Simplified Google sign-in
-    this.googleUser = {
-      id: 'user_' + Math.random().toString(36).substring(2, 11),
-      name: 'Player' + Math.floor(Math.random() * 1000),
-      photoUrl: ''
-    };
-    this.nickname = this.googleUser.name;
-    console.log('Signed in as:', this.nickname);
+    // Team columns
+    this.add.text(200, 360, 'Red Team', {
+      fontSize: '16px',
+      color: '#ff6666'
+    }).setOrigin(0.5);
 
-    if (this.room) {
-      this.room.send('setProfile', {
-        nickname: this.nickname,
-        googleId: this.googleUser.id,
-        photoUrl: this.googleUser.photoUrl
-      });
-    }
-  }
+    this.add.text(600, 360, 'Blue Team', {
+      fontSize: '16px',
+      color: '#6666ff'
+    }).setOrigin(0.5);
 
-  private async connectToServer() {
-    try {
-      this.client = new Client('ws://localhost:2567');
-      
-      // Try to create or join a room
-      try {
-        this.room = await this.client.create('game_room', {
-          nickname: this.nickname || 'Player'
-        });
-      } catch (e) {
-        // If creation fails, try to join
-        this.room = await this.client.joinOrCreate('game_room', {
-          nickname: this.nickname || 'Player'
-        });
-      }
-
-      this.setupRoomHandlers();
-      console.log('Connected to room:', this.room.roomId);
-    } catch (e) {
-      console.error('Failed to connect to server:', e);
-    }
+    // Player list container
+    this.playerListContainer = this.add.container(0, 380);
   }
 
   private setupRoomHandlers() {
     if (!this.room) return;
 
     this.room.onStateChange((state) => {
-      // Update UI based on state
+      // Setup collection listeners on first state sync
+      if (!this.listenersSetup && state.players && typeof state.players.onAdd === 'function') {
+        this.listenersSetup = true;
+
+        state.players.onAdd((player: any, sessionId: string) => {
+          this.updatePlayerList();
+          player.onChange(() => this.updatePlayerList());
+        });
+
+        state.players.onRemove((player: any, sessionId: string) => {
+          this.updatePlayerList();
+        });
+      }
+
+      this.updatePlayerList();
+
       if (state.phase === 'playing') {
         this.scene.start('GameScene', { room: this.room });
       }
@@ -180,47 +163,130 @@ export class LobbyScene extends Phaser.Scene {
     });
   }
 
-  private selectTeam(team: string) {
-    this.selectedTeam = team;
-    if (this.room) {
-      this.room.send('selectTeam', { team });
+  private updatePlayerList() {
+    // Check if scene is still active
+    if (!this.scene.isActive('LobbyScene')) return;
+    if (!this.playerListContainer || !this.room || !this.room.state || !this.room.state.players) return;
+
+    this.playerListContainer.removeAll(true);
+
+    const players = Array.from(this.room.state.players.values());
+    const redPlayers = players.filter((p: any) => p.team === 'red');
+    const bluePlayers = players.filter((p: any) => p.team === 'blue');
+    const noTeam = players.filter((p: any) => !p.team);
+
+    // Draw red team players
+    redPlayers.forEach((player: any, index: number) => {
+      const y = index * 30;
+      const isCurrentPlayer = player.sessionId === this.room?.sessionId;
+      const displayName = player.isBot ? player.nickname : player.nickname;
+      const nameColor = isCurrentPlayer ? '#ffff00' : '#ffffff';
+      const readyIcon = player.isReady ? ' [OK]' : '';
+      const hostIcon = player.isHost ? ' [H]' : '';
+
+      const text = this.add.text(200, y, `${displayName}${hostIcon}${readyIcon}`, {
+        fontSize: '14px',
+        color: nameColor
+      }).setOrigin(0.5);
+
+      this.playerListContainer!.add(text);
+    });
+
+    // Draw blue team players
+    bluePlayers.forEach((player: any, index: number) => {
+      const y = index * 30;
+      const isCurrentPlayer = player.sessionId === this.room?.sessionId;
+      const displayName = player.isBot ? player.nickname : player.nickname;
+      const nameColor = isCurrentPlayer ? '#ffff00' : '#ffffff';
+      const readyIcon = player.isReady ? ' [OK]' : '';
+      const hostIcon = player.isHost ? ' [H]' : '';
+
+      const text = this.add.text(600, y, `${displayName}${hostIcon}${readyIcon}`, {
+        fontSize: '14px',
+        color: nameColor
+      }).setOrigin(0.5);
+
+      this.playerListContainer!.add(text);
+    });
+
+    // Draw players without team
+    noTeam.forEach((player: any, index: number) => {
+      const y = 100 + index * 25;
+      const isCurrentPlayer = player.sessionId === this.room?.sessionId;
+      const nameColor = isCurrentPlayer ? '#ffff00' : '#888888';
+
+      const text = this.add.text(400, y, `${player.nickname} (no team)`, {
+        fontSize: '12px',
+        color: nameColor
+      }).setOrigin(0.5);
+
+      this.playerListContainer!.add(text);
+    });
+
+    // Update button styles based on current player state
+    this.updateButtonStyles();
+  }
+
+  private updateButtonStyles() {
+    // Check if scene is still active
+    if (!this.scene.isActive('LobbyScene')) return;
+    if (!this.room || !this.room.state || !this.room.state.players) return;
+
+    const currentPlayer = this.room.state.players.get(this.room.sessionId);
+    if (!currentPlayer) return;
+
+    const redButton = this.data.get('redButton') as Phaser.GameObjects.Text;
+    const blueButton = this.data.get('blueButton') as Phaser.GameObjects.Text;
+    const readyButton = this.data.get('readyButton') as Phaser.GameObjects.Text;
+
+    // Update team button styles
+    if (currentPlayer.team === 'red') {
+      redButton.setStyle({ backgroundColor: '#ff0000', fontStyle: 'bold' });
+      blueButton.setStyle({ backgroundColor: '#0000cc', fontStyle: 'normal' });
+    } else if (currentPlayer.team === 'blue') {
+      redButton.setStyle({ backgroundColor: '#cc0000', fontStyle: 'normal' });
+      blueButton.setStyle({ backgroundColor: '#0000ff', fontStyle: 'bold' });
     }
 
-    // Visual feedback
-    const redButton = this.data.get('redButton');
-    const blueButton = this.data.get('blueButton');
-    
-    if (team === 'red') {
-      redButton.setStyle({ backgroundColor: '#ff0000', fontStyle: 'bold' });
-      blueButton.setStyle({ backgroundColor: '#0000ff', fontStyle: 'normal' });
+    // Update ready button style
+    if (currentPlayer.isReady) {
+      readyButton.setText('Not Ready');
+      readyButton.setStyle({ backgroundColor: '#00aa00', fontStyle: 'bold' });
     } else {
-      blueButton.setStyle({ backgroundColor: '#0000ff', fontStyle: 'bold' });
-      redButton.setStyle({ backgroundColor: '#ff0000', fontStyle: 'normal' });
+      readyButton.setText('Ready');
+      readyButton.setStyle({ backgroundColor: '#006600', fontStyle: 'normal' });
     }
   }
 
+  private selectTeam(team: string) {
+    if (!this.room) return;
+
+    this.selectedTeam = team;
+    this.room.send('selectTeam', { team });
+  }
+
   private toggleReady() {
-    if (!this.selectedTeam) {
+    if (!this.room || !this.room.state || !this.room.state.players) return;
+
+    const currentPlayer = this.room.state.players.get(this.room.sessionId);
+    if (!currentPlayer || !currentPlayer.team) {
       console.log('Please select a team first');
       return;
     }
 
     this.isReady = !this.isReady;
-    if (this.room) {
-      this.room.send('ready', { ready: this.isReady });
-    }
-
-    const readyButton = this.data.get('readyButton');
-    if (this.isReady) {
-      readyButton.setStyle({ backgroundColor: '#00ff00', fontStyle: 'bold' });
-    } else {
-      readyButton.setStyle({ backgroundColor: '#00aa00', fontStyle: 'normal' });
-    }
+    this.room.send('ready', { ready: this.isReady });
   }
 
   private startGame() {
+    if (!this.room) return;
+    this.room.send('startGame', {});
+  }
+
+  private leaveRoom() {
     if (this.room) {
-      this.room.send('startGame', {});
+      this.room.leave();
     }
+    this.scene.start('MainMenuScene');
   }
 }

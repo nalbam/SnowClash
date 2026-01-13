@@ -4,20 +4,20 @@ A Snowcraft-style 3v3 online multiplayer snowball fight game built with Phaser 3
 
 ## Features
 
-- **Google Authentication**: Sign in with your Google account
-- **Profile & Nickname**: Customize your player profile
-- **Room Management**: Create or join game rooms
+- **Anonymous Login**: Play instantly with a randomly generated nickname (no sign-in required)
+- **Room System**: Browse available rooms, create new rooms, or quick play
+- **Bot Players**: Bots fill empty team slots automatically (3v3)
 - **Team Selection**: Choose between Red Team or Blue Team (3v3)
 - **Ready System**: All players must ready up before game starts
 - **Auto-kick**: Players not ready within 1 minute are automatically removed
 - **Host Controls**: Room creator has game start authority
 - **Diagonal Territory**: Square snow map divided by `\` diagonal (top-left to bottom-right)
 - **Movement**: Keyboard controls (WASD/Arrow keys)
-- **Snowball Mechanics**: 
+- **Snowball Mechanics**:
   - Press Space to throw
   - Hold Space to charge for more damage
   - Snowballs fly diagonally toward opponent territory
-- **Energy System**: 
+- **Energy System**:
   - Each player starts with 10 energy
   - Normal snowball: 4 damage
   - Charged snowball: 7 damage
@@ -75,22 +75,26 @@ npm start
 
 ## Game Rules
 
-1. **Lobby Phase**:
-   - Sign in with Google
+1. **Main Menu**:
+   - Get a random nickname (can change anytime)
+   - Create a new room, join an existing room, or quick play
+
+2. **Lobby Phase**:
    - Select a team (Red or Blue)
    - Click "Ready"
    - Wait for all players to ready up
-   - Host starts the game
+   - Host starts the game (bots fill empty slots automatically)
 
-2. **Playing Phase**:
+3. **Playing Phase**:
    - Move your character within your team's territory
    - Red team: Top-right diagonal half
    - Blue team: Bottom-left diagonal half
    - Throw snowballs at opponents
    - Hold Space to charge for more damage
    - Avoid getting hit
+   - Bots throw snowballs every 2 seconds
 
-3. **Winning**:
+4. **Winning**:
    - Stun all opponents by reducing their energy to 0 or below
    - Last team standing wins!
 
@@ -105,7 +109,6 @@ npm start
 - **Server**: Colyseus (multiplayer framework)
 - **Language**: TypeScript
 - **Bundler**: Webpack
-- **Authentication**: Google OAuth
 
 ## License
 

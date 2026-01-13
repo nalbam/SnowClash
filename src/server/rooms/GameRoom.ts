@@ -2,6 +2,8 @@ import { Room, Client } from 'colyseus';
 import { GameState } from '../schema/GameState';
 import { PlayerSchema } from '../schema/PlayerSchema';
 import { SnowballSchema } from '../schema/SnowballSchema';
+import { BotController } from '../bots/BotController';
+import { generateNickname } from '../utils/NicknameGenerator';
 
 const READY_TIMEOUT = 60000; // 1 minute in milliseconds
 const MAP_SIZE = 800;
@@ -13,10 +15,16 @@ const CHARGED_DAMAGE = 7;
 export class GameRoom extends Room<GameState> {
   private readyTimers: Map<string, NodeJS.Timeout> = new Map();
   private updateInterval?: NodeJS.Timeout;
+  private botController?: BotController;
 
   onCreate(options: any) {
     this.setState(new GameState());
     this.state.mapSize = MAP_SIZE;
+    this.state.roomName = options.roomName || 'Game Room';
+    this.botController = new BotController(this.state);
+
+    // Set metadata for room listing
+    this.setMetadata({ roomName: this.state.roomName });
 
     this.onMessage('setProfile', (client, message) => {
       const player = this.state.players.get(client.sessionId);
@@ -122,13 +130,15 @@ export class GameRoom extends Room<GameState> {
   onJoin(client: Client, options: any) {
     const player = new PlayerSchema();
     player.sessionId = client.sessionId;
-    player.nickname = options.nickname || 'Player';
+    player.nickname = options.nickname || generateNickname();
     player.googleId = options.googleId || '';
     player.photoUrl = options.photoUrl || '';
+    player.isBot = false;
     player.joinedAt = Date.now();
 
-    // First player is the host
-    if (this.state.players.size === 0) {
+    // First human player is the host (exclude bots)
+    const humanPlayers = Array.from(this.state.players.values()).filter(p => !p.isBot);
+    if (humanPlayers.length === 0) {
       player.isHost = true;
     }
 
@@ -201,17 +211,24 @@ export class GameRoom extends Room<GameState> {
   }
 
   private startGame() {
-    const players = Array.from(this.state.players.values());
-    const redTeam = players.filter(p => p.team === 'red');
-    const blueTeam = players.filter(p => p.team === 'blue');
+    const humanPlayers = Array.from(this.state.players.values()).filter(p => !p.isBot);
+    const redHumans = humanPlayers.filter(p => p.team === 'red');
+    const blueHumans = humanPlayers.filter(p => p.team === 'blue');
 
-    if (redTeam.length === 0 || blueTeam.length === 0) return;
-    if (!players.every(p => p.isReady)) return;
+    // At least one human player must be ready in either team
+    if (redHumans.length === 0 && blueHumans.length === 0) return;
+    if (!humanPlayers.every(p => p.isReady)) return;
+
+    // Fill teams with bots to make 3v3
+    if (this.botController) {
+      this.botController.fillTeamsWithBots();
+    }
 
     this.state.phase = 'playing';
 
-    // Initialize player positions
-    players.forEach(player => {
+    // Initialize all player positions (including bots)
+    const allPlayers = Array.from(this.state.players.values());
+    allPlayers.forEach(player => {
       if (player.team === 'red') {
         // Red team starts in top-right area (y <= x)
         player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
@@ -233,6 +250,11 @@ export class GameRoom extends Room<GameState> {
 
   private updateGame() {
     if (this.state.phase !== 'playing') return;
+
+    // Update bots
+    if (this.botController) {
+      this.botController.updateBots(Date.now());
+    }
 
     // Update snowballs
     const snowballsToRemove: string[] = [];
@@ -298,6 +320,11 @@ export class GameRoom extends Room<GameState> {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = undefined;
+    }
+
+    // Remove all bots
+    if (this.botController) {
+      this.botController.removeAllBots();
     }
 
     this.broadcast('gameEnded', { winner });

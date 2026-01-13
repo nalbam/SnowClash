@@ -8,6 +8,7 @@ export class PlayerSchema extends Schema {
   @type('string') team: string = ''; // 'red' or 'blue'
   @type('boolean') isReady: boolean = false;
   @type('boolean') isHost: boolean = false;
+  @type('boolean') isBot: boolean = false;
   @type('number') x: number = 0;
   @type('number') y: number = 0;
   @type('number') energy: number = 10;

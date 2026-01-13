@@ -20,6 +20,7 @@ export class GameScene extends Phaser.Scene {
   private chargeStartTime: number = 0;
   private isCharging: boolean = false;
   private chargeGauge?: Phaser.GameObjects.Graphics;
+  private listenersSetup: boolean = false;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -27,6 +28,11 @@ export class GameScene extends Phaser.Scene {
 
   init(data: any) {
     this.room = data.room;
+    this.listenersSetup = false;
+    this.players.clear();
+    this.snowballs.clear();
+    this.playerLabels.clear();
+    this.energyBars.clear();
   }
 
   create() {
@@ -148,28 +154,42 @@ export class GameScene extends Phaser.Scene {
 
     this.currentPlayer = this.room.sessionId;
 
-    this.room.state.players.onAdd((player: any, sessionId: string) => {
-      this.createPlayer(sessionId, player);
-      
-      player.onChange(() => {
-        this.updatePlayer(sessionId, player);
-      });
-    });
+    this.room.onStateChange((state) => {
+      // Setup collection listeners on first state sync
+      if (!this.listenersSetup && state.players && typeof state.players.onAdd === 'function') {
+        this.listenersSetup = true;
 
-    this.room.state.players.onRemove((player: any, sessionId: string) => {
-      this.removePlayer(sessionId);
-    });
+        // Add existing players
+        state.players.forEach((player: any, sessionId: string) => {
+          if (!this.players.has(sessionId)) {
+            this.createPlayer(sessionId, player);
+          }
+        });
 
-    this.room.state.snowballs.onAdd((snowball: any, id: string) => {
-      this.createSnowball(id, snowball);
-      
-      snowball.onChange(() => {
-        this.updateSnowball(id, snowball);
-      });
-    });
+        state.players.onAdd((player: any, sessionId: string) => {
+          this.createPlayer(sessionId, player);
 
-    this.room.state.snowballs.onRemove((snowball: any, id: string) => {
-      this.removeSnowball(id);
+          player.onChange(() => {
+            this.updatePlayer(sessionId, player);
+          });
+        });
+
+        state.players.onRemove((player: any, sessionId: string) => {
+          this.removePlayer(sessionId);
+        });
+
+        state.snowballs.onAdd((snowball: any, id: string) => {
+          this.createSnowball(id, snowball);
+
+          snowball.onChange(() => {
+            this.updateSnowball(id, snowball);
+          });
+        });
+
+        state.snowballs.onRemove((snowball: any, id: string) => {
+          this.removeSnowball(id);
+        });
+      }
     });
 
     this.room.onMessage('gameEnded', (message) => {
@@ -180,14 +200,19 @@ export class GameScene extends Phaser.Scene {
   private createPlayer(sessionId: string, player: any) {
     const isCurrentPlayer = sessionId === this.currentPlayer;
     const color = player.team === 'red' ? 0xff0000 : 0x0000ff;
+    const isBot = player.isBot;
 
     // Create player circle
     const graphics = this.add.graphics();
     graphics.fillStyle(color, 1);
     graphics.fillCircle(0, 0, 15);
-    
+
     if (isCurrentPlayer) {
       graphics.lineStyle(2, 0xffff00, 1);
+      graphics.strokeCircle(0, 0, 15);
+    } else if (isBot) {
+      // Bot players have gray dashed border
+      graphics.lineStyle(2, 0x888888, 1);
       graphics.strokeCircle(0, 0, 15);
     }
 
@@ -338,14 +363,19 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY + 60, 'Returning to lobby...', {
+    this.add.text(centerX, centerY + 60, 'Returning to main menu...', {
       fontSize: '24px',
       color: '#ffffff'
     }).setOrigin(0.5);
 
-    // Return to lobby after 5 seconds
+    // Leave current room
+    if (this.room) {
+      this.room.leave();
+    }
+
+    // Return to main menu after 5 seconds
     this.time.delayedCall(5000, () => {
-      this.scene.start('LobbyScene');
+      this.scene.start('MainMenuScene');
     });
   }
 }
