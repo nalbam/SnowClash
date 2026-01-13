@@ -29,10 +29,10 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 - **Entry point**: `src/server/index.ts` - Express server with Colyseus game server, REST API
 - **Game room**: `src/server/rooms/GameRoom.ts` - All game logic, message handlers, and game loop (60 FPS)
 - **Schemas**: `src/server/schema/` - Colyseus state schemas using `@colyseus/schema` decorators
-  - `GameState` - Root state containing players, snowballs, phase, winner, roomName, botCount
-  - `PlayerSchema` - Player state (position, energy, team, ready status, isBot)
-  - `SnowballSchema` - Projectile state (position, velocity, damage)
-- **Bots**: `src/server/bots/BotController.ts` - Bot creation, behavior (2s attack interval), removal
+  - `GameState` - Root state containing players, snowballs, phase, winner, roomName, botCount, mapSize
+  - `PlayerSchema` - Player state (sessionId, nickname, googleId, photoUrl, team, isReady, isHost, isBot, x, y, energy, isStunned, joinedAt)
+  - `SnowballSchema` - Projectile state (id, ownerId, x, y, velocityX, velocityY, team, damage)
+- **Bots**: `src/server/bots/BotController.ts` - Bot creation, AI movement (1s direction change), attack behavior (2s interval), removal
 - **Utils**: `src/server/utils/NicknameGenerator.ts` - Random nickname generation
 
 ### Client (Phaser 3)
@@ -46,9 +46,10 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 1. Client fetches nickname via REST API (`GET /api/nickname`)
 2. Client fetches room list via REST API (`GET /api/rooms`)
 3. Client connects via WebSocket to Colyseus server
-4. Client sends messages: `selectTeam`, `ready`, `startGame`, `move`, `throwSnowball`
+4. Client sends messages: `setProfile`, `selectTeam`, `ready`, `startGame`, `move`, `throwSnowball`
 5. Server broadcasts state changes via Colyseus state synchronization
-6. Client listens to `onStateChange` and `onAdd`/`onRemove`/`onChange` callbacks on state collections
+6. Server broadcasts `gameEnded` message with winner when game ends
+7. Client listens to `onStateChange` and `onAdd`/`onRemove`/`onChange` callbacks on state collections
 
 ## Game Constants
 
@@ -62,16 +63,35 @@ Located in `src/server/rooms/GameRoom.ts`:
 
 Located in `src/server/bots/BotController.ts`:
 - `BOT_ATTACK_INTERVAL`: 2000ms (bot throws snowball every 2s)
+- `BOT_DIRECTION_CHANGE_INTERVAL`: 1000ms (bot changes movement direction every 1s)
+
+Located in `src/client/scenes/GameScene.ts`:
+- `THROW_COOLDOWN`: 1000ms (minimum time between throws)
+- `MIN_CHARGE_TIME`: 200ms (minimum charge time to throw)
 
 ## Key Game Mechanics
 
 - **Anonymous Login**: Random nickname, no sign-in required
 - **Room System**: Browse rooms, create room, quick play
-- **Bot Players**: Auto-fill teams to 3v3, bots throw snowballs every 2s
+- **Bot Players**: Auto-fill teams to 3v3, bots throw snowballs every 2s and move around every 1s
 - **Territory**: Map divided by `\` diagonal (top-left to bottom-right). Red team (top-right): `y <= x`, Blue team (bottom-left): `y >= x`
+- **Territory Boundaries**: 15px padding from map edges and diagonal line (playerRadius)
+- **Spawn Positions**: Random within team territory with 30px margin from diagonal and 20px from edges
 - **Energy**: Players start with 10 energy, stunned when reaching 0
+- **Stunned Players**: Can still be hit by snowballs (act as dummy/shield)
+- **Snowball Hit Detection**: Player radius (15px) + snowball radius (normal: 5px, charged: 9px)
+- **Snowball Direction**: Red team shoots toward bottom-left (−x, +y), Blue team shoots toward top-right (+x, −y)
+- **Game End**: Snowballs continue moving for 3 seconds after game ends
 - **Phases**: `lobby` → `playing` → `ended`
 - **Host authority**: First human player to join becomes host and can start the game
+
+## Controls
+
+- **Movement**: WASD keys or Arrow keys
+- **Throw Snowball**: Space (hold to charge, release to throw)
+  - Minimum charge: 0.2s required to throw
+  - Full charge: 0.7s+ for charged damage (7 instead of 4)
+  - Cooldown: 1s between throws
 
 ## Build Configuration
 
