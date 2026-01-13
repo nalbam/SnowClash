@@ -404,7 +404,7 @@ room.onMessage('gameEnded', (message) => {
 | `snowballs` | MapSchema<SnowballSchema> | `{}` | 현재 필드의 눈덩이들 |
 | `phase` | string | `'lobby'` | 게임 페이즈 |
 | `winner` | string | `''` | 승자 |
-| `mapSize` | number | `800` | 맵 크기 (픽셀) |
+| `mapSize` | number | `600` | 맵 크기 (픽셀) |
 | `roomName` | string | `''` | 룸 이름 |
 | `botCount` | number | `0` | 현재 봇 수 |
 

@@ -6,9 +6,9 @@ import { BotController } from '../bots/BotController';
 import { generateNickname } from '../utils/NicknameGenerator';
 
 const READY_TIMEOUT = 60000; // 1 minute in milliseconds
-const MAP_SIZE = 800;
-const PLAYER_SPEED = 3;
-const SNOWBALL_SPEED = 5;
+const MAP_SIZE = 600;
+const PLAYER_SPEED = 2;
+const SNOWBALL_SPEED = 4;
 const NORMAL_DAMAGE = 4;
 const CHARGED_DAMAGE = 7;
 
@@ -227,16 +227,32 @@ export class GameRoom extends Room<GameState> {
     this.state.phase = 'playing';
 
     // Initialize all player positions (including bots)
+    // Spawn randomly within team territory with margin from diagonal
+    const margin = 30; // Distance from diagonal line
+    const padding = 20; // Distance from map edges
+
     const allPlayers = Array.from(this.state.players.values());
     allPlayers.forEach(player => {
       if (player.team === 'red') {
-        // Red team starts in top-right area (y <= x)
-        player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
-        player.y = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
+        // Red team: top-right triangle (y < x)
+        // Generate random point where y < x - margin
+        let x, y;
+        do {
+          x = padding + Math.random() * (MAP_SIZE - padding * 2);
+          y = padding + Math.random() * (MAP_SIZE - padding * 2);
+        } while (y >= x - margin); // Keep trying until y < x - margin
+        player.x = x;
+        player.y = y;
       } else {
-        // Blue team starts in bottom-left area (y >= x)
-        player.x = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
-        player.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
+        // Blue team: bottom-left triangle (y > x)
+        // Generate random point where y > x + margin
+        let x, y;
+        do {
+          x = padding + Math.random() * (MAP_SIZE - padding * 2);
+          y = padding + Math.random() * (MAP_SIZE - padding * 2);
+        } while (y <= x + margin); // Keep trying until y > x + margin
+        player.x = x;
+        player.y = y;
       }
       player.energy = 10;
       player.isStunned = false;
@@ -263,9 +279,10 @@ export class GameRoom extends Room<GameState> {
       snowball.x += snowball.velocityX;
       snowball.y += snowball.velocityY;
 
-      // Remove snowballs that are out of bounds
-      if (snowball.x < 0 || snowball.x > MAP_SIZE || 
-          snowball.y < 0 || snowball.y > MAP_SIZE) {
+      // Remove snowballs that are far out of bounds (allow traveling across the map)
+      const margin = 100;
+      if (snowball.x < -margin || snowball.x > MAP_SIZE + margin ||
+          snowball.y < -margin || snowball.y > MAP_SIZE + margin) {
         snowballsToRemove.push(id);
         return;
       }

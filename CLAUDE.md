@@ -53,9 +53,9 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 ## Game Constants
 
 Located in `src/server/rooms/GameRoom.ts`:
-- `MAP_SIZE`: 800px
-- `PLAYER_SPEED`: 3
-- `SNOWBALL_SPEED`: 5
+- `MAP_SIZE`: 600px
+- `PLAYER_SPEED`: 2
+- `SNOWBALL_SPEED`: 4
 - `NORMAL_DAMAGE`: 4 (tap space)
 - `CHARGED_DAMAGE`: 7 (hold space ≥0.7s)
 - `READY_TIMEOUT`: 60000ms (auto-kick if not ready)

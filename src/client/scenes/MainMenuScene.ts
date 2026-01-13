@@ -158,31 +158,31 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     this.rooms.forEach((room, index) => {
-      const y = index * 50;
+      const y = index * 45;
 
-      // Room background
+      // Room background (adjusted for 600px width)
       const bg = this.add.graphics();
       bg.fillStyle(0x333344, 1);
-      bg.fillRoundedRect(100, y, 600, 40, 8);
+      bg.fillRoundedRect(20, y, 560, 38, 8);
 
       // Room name
-      const nameText = this.add.text(120, y + 10, room.roomName, {
-        fontSize: '18px',
+      const nameText = this.add.text(35, y + 10, room.roomName, {
+        fontSize: '14px',
         color: '#ffffff'
       });
 
       // Player count
-      const countText = this.add.text(500, y + 10, `${room.playerCount}/${room.maxPlayers}`, {
-        fontSize: '16px',
+      const countText = this.add.text(420, y + 10, `${room.playerCount}/${room.maxPlayers}`, {
+        fontSize: '14px',
         color: room.playerCount >= room.maxPlayers ? '#ff6666' : '#66ff66'
       });
 
       // Join button
-      const joinBtn = this.add.text(620, y + 10, 'Join', {
-        fontSize: '16px',
+      const joinBtn = this.add.text(500, y + 8, 'Join', {
+        fontSize: '14px',
         color: '#ffffff',
         backgroundColor: '#FF9800',
-        padding: { x: 15, y: 5 }
+        padding: { x: 12, y: 5 }
       }).setInteractive({ useHandCursor: true });
 
       joinBtn.on('pointerdown', () => this.joinRoom(room.roomId));

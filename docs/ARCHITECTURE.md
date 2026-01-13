@@ -186,7 +186,7 @@ class GameState extends Schema {
   @type({ map: SnowballSchema }) snowballs // 현재 눈덩이들
   @type('string') phase                    // 게임 페이즈
   @type('string') winner                   // 승자
-  @type('number') mapSize                  // 맵 크기 (800)
+  @type('number') mapSize                  // 맵 크기 (600)
   @type('string') roomName                 // 룸 이름
   @type('number') botCount                 // 현재 봇 수
 }
@@ -240,7 +240,7 @@ Phaser 3 게임 설정을 정의합니다.
 ```typescript
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 800,
+  width: 600,
   height: 600,
   parent: 'game-container',
   backgroundColor: '#1a1a2e',

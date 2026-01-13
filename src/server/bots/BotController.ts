@@ -3,8 +3,8 @@ import { PlayerSchema } from '../schema/PlayerSchema';
 import { SnowballSchema } from '../schema/SnowballSchema';
 import { generateBotNickname } from '../utils/NicknameGenerator';
 
-const MAP_SIZE = 800;
-const SNOWBALL_SPEED = 5;
+const MAP_SIZE = 600;
+const SNOWBALL_SPEED = 4;
 const NORMAL_DAMAGE = 4;
 const BOT_ATTACK_INTERVAL = 2000; // 2 seconds
 
@@ -42,14 +42,27 @@ export class BotController {
     const bot = this.state.players.get(botId);
     if (!bot) return;
 
+    const margin = 30;
+    const padding = 20;
+
     if (bot.team === 'red') {
-      // Red team: top-right area (y <= x)
-      bot.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);
-      bot.y = Math.random() * (MAP_SIZE * 0.3);
+      // Red team: top-right triangle (y < x - margin)
+      let x, y;
+      do {
+        x = padding + Math.random() * (MAP_SIZE - padding * 2);
+        y = padding + Math.random() * (MAP_SIZE - padding * 2);
+      } while (y >= x - margin);
+      bot.x = x;
+      bot.y = y;
     } else {
-      // Blue team: bottom-left area (y >= x)
-      bot.x = Math.random() * (MAP_SIZE * 0.3);
-      bot.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);
+      // Blue team: bottom-left triangle (y > x + margin)
+      let x, y;
+      do {
+        x = padding + Math.random() * (MAP_SIZE - padding * 2);
+        y = padding + Math.random() * (MAP_SIZE - padding * 2);
+      } while (y <= x + margin);
+      bot.x = x;
+      bot.y = y;
     }
   }
 

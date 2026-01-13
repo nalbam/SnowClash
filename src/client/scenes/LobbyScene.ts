@@ -105,40 +105,45 @@ export class LobbyScene extends Phaser.Scene {
     this.data.set('startButton', startButton);
 
     // Player list section
-    this.add.text(centerX, 330, 'Players', {
-      fontSize: '20px',
+    this.add.text(centerX, 320, 'Players', {
+      fontSize: '18px',
       color: '#ffffff'
     }).setOrigin(0.5);
 
-    // Team columns
-    this.add.text(200, 360, 'Red Team', {
-      fontSize: '16px',
+    // Team columns (adjusted for 600px width)
+    this.add.text(150, 350, 'Red Team', {
+      fontSize: '14px',
       color: '#ff6666'
     }).setOrigin(0.5);
 
-    this.add.text(600, 360, 'Blue Team', {
-      fontSize: '16px',
+    this.add.text(450, 350, 'Blue Team', {
+      fontSize: '14px',
       color: '#6666ff'
     }).setOrigin(0.5);
 
     // Player list container
-    this.playerListContainer = this.add.container(0, 380);
+    this.playerListContainer = this.add.container(0, 370);
   }
 
   private setupRoomHandlers() {
     if (!this.room) return;
 
     this.room.onStateChange((state) => {
+      // Ignore if scene is no longer active
+      if (!this.scene.isActive('LobbyScene')) return;
+
       // Setup collection listeners on first state sync
       if (!this.listenersSetup && state.players && typeof state.players.onAdd === 'function') {
         this.listenersSetup = true;
 
         state.players.onAdd((player: any, sessionId: string) => {
+          if (!this.scene.isActive('LobbyScene')) return;
           this.updatePlayerList();
           player.onChange(() => this.updatePlayerList());
         });
 
         state.players.onRemove((player: any, sessionId: string) => {
+          if (!this.scene.isActive('LobbyScene')) return;
           this.updatePlayerList();
         });
       }
@@ -175,48 +180,48 @@ export class LobbyScene extends Phaser.Scene {
     const bluePlayers = players.filter((p: any) => p.team === 'blue');
     const noTeam = players.filter((p: any) => !p.team);
 
-    // Draw red team players
+    // Draw red team players (x=150 for 600px width)
     redPlayers.forEach((player: any, index: number) => {
-      const y = index * 30;
+      const y = index * 25;
       const isCurrentPlayer = player.sessionId === this.room?.sessionId;
-      const displayName = player.isBot ? player.nickname : player.nickname;
+      const displayName = player.nickname;
       const nameColor = isCurrentPlayer ? '#ffff00' : '#ffffff';
       const readyIcon = player.isReady ? ' [OK]' : '';
       const hostIcon = player.isHost ? ' [H]' : '';
 
-      const text = this.add.text(200, y, `${displayName}${hostIcon}${readyIcon}`, {
-        fontSize: '14px',
+      const text = this.add.text(150, y, `${displayName}${hostIcon}${readyIcon}`, {
+        fontSize: '12px',
         color: nameColor
       }).setOrigin(0.5);
 
       this.playerListContainer!.add(text);
     });
 
-    // Draw blue team players
+    // Draw blue team players (x=450 for 600px width)
     bluePlayers.forEach((player: any, index: number) => {
-      const y = index * 30;
+      const y = index * 25;
       const isCurrentPlayer = player.sessionId === this.room?.sessionId;
-      const displayName = player.isBot ? player.nickname : player.nickname;
+      const displayName = player.nickname;
       const nameColor = isCurrentPlayer ? '#ffff00' : '#ffffff';
       const readyIcon = player.isReady ? ' [OK]' : '';
       const hostIcon = player.isHost ? ' [H]' : '';
 
-      const text = this.add.text(600, y, `${displayName}${hostIcon}${readyIcon}`, {
-        fontSize: '14px',
+      const text = this.add.text(450, y, `${displayName}${hostIcon}${readyIcon}`, {
+        fontSize: '12px',
         color: nameColor
       }).setOrigin(0.5);
 
       this.playerListContainer!.add(text);
     });
 
-    // Draw players without team
+    // Draw players without team (x=300 center for 600px width)
     noTeam.forEach((player: any, index: number) => {
-      const y = 100 + index * 25;
+      const y = 90 + index * 22;
       const isCurrentPlayer = player.sessionId === this.room?.sessionId;
       const nameColor = isCurrentPlayer ? '#ffff00' : '#888888';
 
-      const text = this.add.text(400, y, `${player.nickname} (no team)`, {
-        fontSize: '12px',
+      const text = this.add.text(300, y, `${player.nickname} (no team)`, {
+        fontSize: '11px',
         color: nameColor
       }).setOrigin(0.5);
 

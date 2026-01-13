@@ -45,7 +45,7 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 
 | 상수 | 값 | 단위 | 설명 |
 |------|-----|------|------|
-| `MAP_SIZE` | 800 | 픽셀 | 게임 맵의 가로/세로 크기 |
+| `MAP_SIZE` | 600 | 픽셀 | 게임 맵의 가로/세로 크기 |
 | `PLAYER_SPEED` | 3 | px/프레임 | 플레이어 이동 속도 |
 | `SNOWBALL_SPEED` | 5 | px/프레임 | 눈덩이 이동 속도 |
 | `NORMAL_DAMAGE` | 4 | 에너지 | 일반 공격 데미지 |
@@ -63,7 +63,7 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 ```typescript
 // GameRoom.ts
 const READY_TIMEOUT = 60000;
-const MAP_SIZE = 800;
+const MAP_SIZE = 600;
 const PLAYER_SPEED = 3;
 const SNOWBALL_SPEED = 5;
 const NORMAL_DAMAGE = 4;
@@ -237,7 +237,7 @@ if (bot.team === 'red') {
 ### 맵 분할
 
 ```
-       0                    800
+       0                    600
     0  ┌─────────────────────┐
        │╲                    │
        │  ╲    Red 영역      │
@@ -248,12 +248,12 @@ if (bot.team === 'red') {
        │            ╲        │
        │  Blue 영역   ╲      │
        │  (좌하단)      ╲    │
-  800  └─────────────────────┘
+  600  └─────────────────────┘
 ```
 
 ### 영역 공식
 
-대각선은 `(0, 0)`에서 `(800, 800)`으로 이어집니다. (`\` 모양)
+대각선은 `(0, 0)`에서 `(600, 600)`으로 이어집니다. (`\` 모양)
 
 | 팀 | 영역 조건 | 설명 |
 |----|-----------|------|
@@ -276,7 +276,7 @@ private isInPlayerTerritory(x: number, y: number, team: string): boolean {
 
 - 플레이어는 **자기 팀 영역 내에서만** 이동 가능
 - 경계를 넘어가려는 이동은 무시됨
-- 맵 바깥(0 미만, 800 초과)으로도 이동 불가
+- 맵 바깥(0 미만, 600 초과)으로도 이동 불가
 
 ---
 
@@ -337,16 +337,16 @@ newY = player.y + y * PLAYER_SPEED;  // PLAYER_SPEED: 3
 
 | 팀 | 영역 | 시작 위치 | 좌표 범위 |
 |----|------|-----------|-----------|
-| Red | 우상단 | 우상단 코너 | (560~800, 0~240) |
-| Blue | 좌하단 | 좌하단 코너 | (0~240, 560~800) |
+| Red | 우상단 | 우상단 코너 | (420~600, 0~180) |
+| Blue | 좌하단 | 좌하단 코너 | (0~180, 420~600) |
 
 ```typescript
 if (player.team === 'red') {
-  player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
-  player.y = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
+  player.x = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 420 ~ 600
+  player.y = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 180
 } else {
-  player.x = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 240
-  player.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 560 ~ 800
+  player.x = Math.random() * (MAP_SIZE * 0.3);                   // 0 ~ 180
+  player.y = MAP_SIZE * 0.7 + Math.random() * (MAP_SIZE * 0.3);  // 420 ~ 600
 }
 ```
 
@@ -455,7 +455,7 @@ if (distance < 20) {  // 충돌!
 
 | 조건 | 설명 |
 |------|------|
-| 맵 경계 초과 | x < 0, x > 800, y < 0, y > 800 |
+| 맵 경계 초과 | x < -100, x > 700, y < -100, y > 700 |
 | 플레이어 적중 | 충돌 판정 성공 시 |
 
 ---
@@ -578,7 +578,7 @@ player.energy = 20;         // 10 → 20
 
 **더 큰 맵**
 ```typescript
-const MAP_SIZE = 1200;      // 800 → 1200
+const MAP_SIZE = 1200;      // 600 → 1200
 ```
 
 **봇 공격 빈도 조정**
@@ -589,6 +589,6 @@ const BOT_ATTACK_INTERVAL = 1000;  // 2000 → 1000 (1초)
 
 ### 주의사항
 
-- 클라이언트의 렌더링 크기(800x600)와 맵 크기(MAP_SIZE)는 별개입니다
+- 클라이언트의 렌더링 크기(600x600)와 맵 크기(MAP_SIZE)는 동일해야 합니다
 - 맵 크기 변경 시 클라이언트 코드도 함께 수정 필요
 - 속도 변경 시 게임 느낌이 크게 달라질 수 있음
