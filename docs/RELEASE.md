@@ -130,7 +130,7 @@ services:
       - NODE_ENV=production
       - PORT=2567
       - REDIS_URL=redis://redis:6379
-      - ALLOWED_ORIGINS=https://yourdomain.com
+      - ALLOWED_ORIGINS=https://snowclash.nalbam.com
     restart: unless-stopped
 
   redis:
@@ -144,7 +144,7 @@ services:
 
 Set these in GitHub repository settings (Settings → Secrets and variables → Actions → Variables):
 
-- `SERVER_URL`: Default server URL for client builds (e.g., `game.example.com:2567`)
+- `SERVER_URL`: Default server URL for client builds (e.g., `snowclash.server.nalbam.com`)
 
 ### Manual Deployment
 

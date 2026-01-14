@@ -181,10 +181,7 @@ All game constants are defined in `src/shared/constants.ts` and shared between s
 npm run dev
 
 # Production build with custom server
-SERVER_URL=game.example.com:2567 npm run build
-
-# Or with HTTPS (protocol auto-detected from page)
-SERVER_URL=game.example.com npm run build
+SERVER_URL=snowclash.server.nalbam.com npm run build
 ```
 
 ### Server (runtime)
@@ -209,7 +206,7 @@ REDIS_URL=redis://localhost:6379 npm start
 
 # Production with security
 NODE_ENV=production \
-ALLOWED_ORIGINS=https://game.example.com \
+ALLOWED_ORIGINS=https://snowclash.nalbam.com \
 REDIS_URL=redis://:password@redis.example.com:6379 \
 PORT=2567 npm start
 ```

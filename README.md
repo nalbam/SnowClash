@@ -2,6 +2,12 @@
 
 A Snowcraft-style 3v3 online multiplayer snowball fight game built with Phaser 3 and Colyseus.
 
+## 🎮 Live Demo
+
+Play now at: **[https://snowclash.nalbam.com](https://snowclash.nalbam.com)**
+
+Server: `snowclash.server.nalbam.com`
+
 ## Features
 
 - **Anonymous Login**: Play instantly with a randomly generated nickname (no sign-in required)
@@ -79,7 +85,11 @@ npm start
 - `SERVER_URL`: Server address for client to connect (default: `localhost:2567`)
 
 ```bash
-SERVER_URL=game.example.com npm run build
+# Development
+npm run build
+
+# Production
+SERVER_URL=snowclash.server.nalbam.com npm run build
 ```
 
 ### Server (runtime)
@@ -89,7 +99,14 @@ SERVER_URL=game.example.com npm run build
 - `NODE_ENV`: Set to `production` for stricter security
 
 ```bash
-NODE_ENV=production ALLOWED_ORIGINS=https://game.example.com npm start
+# Development
+npm start
+
+# Production
+NODE_ENV=production \
+ALLOWED_ORIGINS=https://snowclash.nalbam.com \
+PORT=2567 \
+npm start
 ```
 
 ## Game Rules

@@ -2,6 +2,12 @@
 
 Complete documentation for the SnowClash multiplayer snowball fight game.
 
+## 🎮 Live Demo
+
+Play now at: **[https://snowclash.nalbam.com](https://snowclash.nalbam.com)**
+
+Server: `snowclash.server.nalbam.com`
+
 ## 📚 Documentation Index
 
 ### Getting Started

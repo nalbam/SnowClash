@@ -2,6 +2,11 @@
 
 SnowClash AWS 배포 가이드입니다.
 
+## Live Production
+
+- **Client**: https://snowclash.nalbam.com
+- **Server**: snowclash.server.nalbam.com
+
 ## Prerequisites
 
 - Node.js 22+
@@ -16,7 +21,7 @@ SnowClash AWS 배포 가이드입니다.
 npm ci
 
 # Build client (outputs to public/)
-SERVER_URL=game.server.example.com npm run build
+SERVER_URL=snowclash.server.nalbam.com npm run build
 
 # Build server (outputs to dist/server/)
 npm run build:server
@@ -108,7 +113,7 @@ sudo yum install -y nginx
 sudo yum install -y certbot python3-certbot-nginx
 
 # SSL 인증서 발급
-sudo certbot --nginx -d game.example.com
+sudo certbot --nginx -d snowclash.nalbam.com
 ```
 
 **/etc/nginx/nginx.conf**:
@@ -128,16 +133,16 @@ http {
 
     server {
         listen 80;
-        server_name game.example.com;
+        server_name snowclash.nalbam.com;
         return 301 https://$server_name$request_uri;
     }
 
     server {
         listen 443 ssl http2;
-        server_name game.example.com;
+        server_name snowclash.nalbam.com;
 
-        ssl_certificate /etc/letsencrypt/live/game.example.com/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/game.example.com/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/snowclash.nalbam.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/snowclash.nalbam.com/privkey.pem;
 
         # Static files (client)
         location / {
@@ -213,7 +218,7 @@ option_settings:
   aws:elasticbeanstalk:application:environment:
     NODE_ENV: production
     PORT: 8080
-    ALLOWED_ORIGINS: https://game.example.com
+    ALLOWED_ORIGINS: https://snowclash.nalbam.com
 ```
 
 **.ebextensions/nginx-websocket.config** (WebSocket 지원):
@@ -262,7 +267,7 @@ eb create snowclash-env --elb-type application --instance-type t3.micro
 eb deploy
 
 # 환경변수 설정
-eb setenv NODE_ENV=production ALLOWED_ORIGINS=https://game.example.com
+eb setenv NODE_ENV=production ALLOWED_ORIGINS=https://snowclash.nalbam.com
 ```
 
 ### Step 5: HTTPS 설정 (ALB 사용 시)
@@ -371,7 +376,7 @@ aws ecs create-cluster --cluster-name snowclash-cluster
       "environment": [
         { "name": "NODE_ENV", "value": "production" },
         { "name": "PORT", "value": "2567" },
-        { "name": "ALLOWED_ORIGINS", "value": "https://game.example.com" }
+        { "name": "ALLOWED_ORIGINS", "value": "https://snowclash.nalbam.com" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
