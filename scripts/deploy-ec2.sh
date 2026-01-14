@@ -72,10 +72,8 @@ fi
 
 # Load defaults from .env if exists
 DEFAULT_DOMAIN=""
-ALLOWED_ORIGINS=""
 if [ -f "$INSTALL_DIR/.env" ]; then
-  DEFAULT_DOMAIN=$(grep -E "^ALLOWED_ORIGINS=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | sed 's|https://||' | xargs)
-  ALLOWED_ORIGINS=$(grep -E "^ALLOWED_ORIGINS=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
+  DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 elif [ -f ".env" ]; then
   DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 elif [ -f "../.env" ]; then
@@ -92,14 +90,14 @@ if [ "$UPDATE_MODE" = true ]; then
     exit 1
   fi
 
-  log_info "Using existing configuration: $DOMAIN"
+  log_info "Using existing server domain: $DOMAIN"
 else
-  # Get domain name for fresh install
+  # Get server domain for full reinstall
   if [ -n "$DEFAULT_DOMAIN" ]; then
-    read -p "Enter your domain name [$DEFAULT_DOMAIN]: " DOMAIN
+    read -p "Enter your server domain [$DEFAULT_DOMAIN]: " DOMAIN
     DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
   else
-    read -p "Enter your domain name (e.g., game.example.com): " DOMAIN
+    read -p "Enter your server domain (e.g., game.example.com): " DOMAIN
   fi
 
   if [ -z "$DOMAIN" ]; then
@@ -120,8 +118,8 @@ else
   # Confirm settings
   echo ""
   echo "=============================================="
-  echo "  Domain: $DOMAIN"
-  echo "  Email:  $EMAIL"
+  echo "  Server Domain: $DOMAIN"
+  echo "  Email:         $EMAIL"
   echo "=============================================="
   echo ""
   read -p "Continue with these settings? (y/n): " CONFIRM
@@ -457,6 +455,7 @@ if [ -n "$EXISTING_REDIS_URL" ]; then
 fi
 
 log_success "Environment file configured"
+log_info "SERVER_URL=$SERVER_URL"
 log_info "ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
 
 # ============================================
