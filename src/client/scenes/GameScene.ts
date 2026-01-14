@@ -165,13 +165,9 @@ export class GameScene extends Phaser.Scene {
 
         if (distance > 5) {
           // Only move if cursor is not too close to player
-          // Calculate normalized direction
+          // Use normalized direction for smooth 360-degree movement
           moveX = dx / distance;
           moveY = dy / distance;
-
-          // Clamp to -1, 0, 1 for consistent behavior with keyboard
-          moveX = Math.sign(moveX);
-          moveY = Math.sign(moveY);
         }
       }
     }
