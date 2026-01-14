@@ -1,6 +1,6 @@
 {
   "name": "snowclash",
-  "version": "1.0.0.dev0",
+  "version": "1.1.0.dev0",
   "description": "SnowClash - 3v3 multiplayer snowball fight game using Phaser 3 and Colyseus",
   "engines": {
     "node": ">=22.0.0",
