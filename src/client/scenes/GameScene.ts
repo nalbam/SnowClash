@@ -17,6 +17,10 @@ export class GameScene extends Phaser.Scene {
   // Mobile flag
   private isMobile: boolean = false;
 
+  // Team and coordinate system
+  private myTeam?: string;
+  private mapDrawn: boolean = false;
+
   private room?: Room;
   private currentPlayer?: string;
   private listenersSetup: boolean = false;
@@ -38,6 +42,8 @@ export class GameScene extends Phaser.Scene {
     this.snowballsListenersSetup = false;
     this.gameEnded = false;
     this.winner = '';
+    this.myTeam = undefined;
+    this.mapDrawn = false;
 
     // Get mobile flag from registry
     this.isMobile = this.registry.get('isMobile') || false;
@@ -66,8 +72,7 @@ export class GameScene extends Phaser.Scene {
     generateCharacterTextures(this);
     createCharacterAnimations(this);
 
-    // Draw the map
-    this.drawMap();
+    // Don't draw map yet - wait for team info
 
     // Initialize input system
     if (this.inputSystem) {
@@ -122,14 +127,24 @@ export class GameScene extends Phaser.Scene {
 
     // Apply client-side prediction for local player (smooth movement)
     if (input.isMoving && this.currentPlayer && playerPos) {
-      const newX = playerPos.x + input.moveX * PLAYER_SPEED;
-      const newY = playerPos.y + input.moveY * PLAYER_SPEED;
+      // For client prediction, we need view coordinate directions
+      // InputSystem returns server coordinate directions, so reverse them back for red team
+      let viewMoveX = input.moveX;
+      let viewMoveY = input.moveY;
+
+      if (this.myTeam === 'red') {
+        viewMoveX = -input.moveX;
+        viewMoveY = -input.moveY;
+      }
+
+      const newX = playerPos.x + viewMoveX * PLAYER_SPEED;
+      const newY = playerPos.y + viewMoveY * PLAYER_SPEED;
 
       // Update position immediately on client for smooth movement
       this.playerRenderSystem.updateLocalPlayerPosition(this.currentPlayer, newX, newY);
     }
 
-    // Send movement to server
+    // Send movement to server (already in server coordinates)
     if (input.isMoving) {
       this.room.send('move', { x: input.moveX, y: input.moveY });
     }
@@ -140,6 +155,28 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Convert server coordinates to view coordinates
+   * Red team sees the map rotated 180 degrees
+   */
+  private toViewCoords(x: number, y: number): { x: number; y: number } {
+    if (this.myTeam === 'red') {
+      return { x: MAP_SIZE - x, y: MAP_SIZE - y };
+    }
+    return { x, y };
+  }
+
+  /**
+   * Convert view coordinates to server coordinates
+   * Used for input (clicks, touches)
+   */
+  private toServerCoords(x: number, y: number): { x: number; y: number } {
+    if (this.myTeam === 'red') {
+      return { x: MAP_SIZE - x, y: MAP_SIZE - y };
+    }
+    return { x, y };
+  }
+
   private drawMap() {
     const graphics = this.add.graphics();
 
@@ -147,8 +184,15 @@ export class GameScene extends Phaser.Scene {
     graphics.fillStyle(0xffffff, 1);
     graphics.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
 
-    // Draw red territory (top-right triangle, above the \ diagonal)
-    graphics.fillStyle(0xff0000, 0.1);
+    // Determine colors based on team
+    // Red team sees: bottom-left = red, top-right = blue
+    // Blue team sees: bottom-left = blue, top-right = red (default)
+    const isRedTeam = this.myTeam === 'red';
+    const bottomLeftColor = isRedTeam ? 0xff0000 : 0x0000ff;
+    const topRightColor = isRedTeam ? 0x0000ff : 0xff0000;
+
+    // Draw top-right territory (above the \ diagonal)
+    graphics.fillStyle(topRightColor, 0.1);
     graphics.beginPath();
     graphics.moveTo(0, 0);
     graphics.lineTo(MAP_SIZE, 0);
@@ -156,8 +200,8 @@ export class GameScene extends Phaser.Scene {
     graphics.closePath();
     graphics.fillPath();
 
-    // Draw blue territory (bottom-left triangle, below the \ diagonal)
-    graphics.fillStyle(0x0000ff, 0.1);
+    // Draw bottom-left territory (below the \ diagonal)
+    graphics.fillStyle(bottomLeftColor, 0.1);
     graphics.beginPath();
     graphics.moveTo(0, 0);
     graphics.lineTo(0, MAP_SIZE);
@@ -173,6 +217,32 @@ export class GameScene extends Phaser.Scene {
 
     // Listen for state changes - this is the main way to get updates
     this.room.onStateChange((state) => {
+      // Check if we have team info and it's the first time
+      const currentPlayerState = state.players?.get(this.currentPlayer || '');
+      const team = currentPlayerState?.team;
+
+      if (team && !this.myTeam) {
+        // First time getting team info
+        this.myTeam = team;
+
+        // Draw map with team-specific colors
+        if (!this.mapDrawn) {
+          this.drawMap();
+          this.mapDrawn = true;
+        }
+
+        // Update all systems with team info
+        if (this.playerRenderSystem) {
+          this.playerRenderSystem.setMyTeam(team);
+        }
+        if (this.snowballSystem) {
+          this.snowballSystem.setMyTeam(team);
+        }
+        if (this.inputSystem) {
+          this.inputSystem.setMyTeam(team);
+        }
+      }
+
       // Sync players from state (create missing, update existing)
       this.syncPlayersFromState(state);
     });
