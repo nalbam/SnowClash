@@ -142,17 +142,22 @@ fi
 
 # Load defaults from .env if exists
 DEFAULT_DOMAIN=""
+DEFAULT_CLIENT_URL=""
 if [ -f "$INSTALL_DIR/.env" ]; then
   DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
+  DEFAULT_CLIENT_URL=$(grep -E "^CLIENT_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 elif [ -f ".env" ]; then
   DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
+  DEFAULT_CLIENT_URL=$(grep -E "^CLIENT_URL=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 elif [ -f "../.env" ]; then
   DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" ../.env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
+  DEFAULT_CLIENT_URL=$(grep -E "^CLIENT_URL=" ../.env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 fi
 
 # Skip configuration prompts in update mode
 if [ "$UPDATE_MODE" = true ]; then
   DOMAIN="$DEFAULT_DOMAIN"
+  CLIENT_URL="$DEFAULT_CLIENT_URL"
   EMAIL=""
 
   if [ -z "$DOMAIN" ]; then
@@ -161,6 +166,7 @@ if [ "$UPDATE_MODE" = true ]; then
   fi
 
   log_info "Using existing server domain: $DOMAIN"
+  [ -n "$CLIENT_URL" ] && log_info "Using existing client URL: $CLIENT_URL"
 else
   # Get server domain for full reinstall
   if [ -n "$DEFAULT_DOMAIN" ]; then
@@ -174,6 +180,11 @@ else
     log_error "Domain name is required!"
     exit 1
   fi
+
+  # Get client URL (GitHub Pages or custom domain)
+  DEFAULT_CLIENT_URL=${DEFAULT_CLIENT_URL:-"https://nalbam.github.io"}
+  read -p "Enter your client URL [$DEFAULT_CLIENT_URL]: " CLIENT_URL
+  CLIENT_URL=${CLIENT_URL:-$DEFAULT_CLIENT_URL}
 
   # Get email for Let's Encrypt (default: admin@domain)
   DEFAULT_EMAIL="admin@$DOMAIN"
@@ -189,6 +200,7 @@ else
   echo ""
   echo "=============================================="
   echo "  Server Domain: $DOMAIN"
+  echo "  Client URL:    $CLIENT_URL"
   echo "  Email:         $EMAIL"
   echo "=============================================="
   echo ""
@@ -492,28 +504,16 @@ if [ -f "$INSTALL_DIR/.env" ]; then
   # Load existing values
   EXISTING_ORIGINS=$(grep -E "^ALLOWED_ORIGINS=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
   EXISTING_SERVER_URL=$(grep -E "^SERVER_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+  EXISTING_CLIENT_URL=$(grep -E "^CLIENT_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
   EXISTING_REDIS_URL=$(grep -E "^REDIS_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
 
-  # Merge ALLOWED_ORIGINS (keep existing domains, add new one if not present)
-  if [ -n "$EXISTING_ORIGINS" ]; then
-    if echo "$EXISTING_ORIGINS" | grep -q "https://$DOMAIN"; then
-      ALLOWED_ORIGINS="$EXISTING_ORIGINS"
-    else
-      ALLOWED_ORIGINS="$EXISTING_ORIGINS,https://$DOMAIN"
-    fi
-  else
-    ALLOWED_ORIGINS="https://$DOMAIN"
-  fi
-
-  # Use existing SERVER_URL or set to new domain
-  if [ -n "$EXISTING_SERVER_URL" ]; then
-    SERVER_URL="$EXISTING_SERVER_URL"
-  else
-    SERVER_URL="$DOMAIN"
-  fi
+  # Use existing values or set to current
+  ALLOWED_ORIGINS="${EXISTING_ORIGINS:-https://$DOMAIN,$CLIENT_URL}"
+  SERVER_URL="${EXISTING_SERVER_URL:-$DOMAIN}"
+  CLIENT_URL="${EXISTING_CLIENT_URL:-$CLIENT_URL}"
 else
-  # Fresh install - include both server domain and GitHub Pages client
-  ALLOWED_ORIGINS="https://$DOMAIN,https://nalbam.github.io"
+  # Fresh install - combine server domain and client URL
+  ALLOWED_ORIGINS="https://$DOMAIN,$CLIENT_URL"
   SERVER_URL="$DOMAIN"
   EXISTING_REDIS_URL=""
 fi
@@ -525,6 +525,7 @@ NODE_ENV=production
 PORT=2567
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 SERVER_URL=$SERVER_URL
+CLIENT_URL=$CLIENT_URL
 EOF
 
 # Add REDIS_URL if it exists
@@ -534,6 +535,7 @@ fi
 
 log_success "Environment file configured"
 log_info "SERVER_URL=$SERVER_URL"
+log_info "CLIENT_URL=$CLIENT_URL"
 log_info "ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
 
 # ============================================
