@@ -36,28 +36,25 @@ log_error() {
 DOCKER_IMAGE="ghcr.io/nalbam/snowclash"
 CONTAINER_NAME="snowclash"
 APP_PORT=2567
+GITHUB_REPO="nalbam/SnowClash"
 
-# Select version (tag) to deploy
+# Select version (tag) to deploy from GitHub releases
 select_version() {
-  log_info "Fetching available versions from GitHub Container Registry..."
+  log_info "Fetching available versions from GitHub releases..."
 
-  # Get tags from ghcr.io using skopeo or docker
+  # Get release tags from GitHub API (public, no auth required)
   local tags=""
+  tags=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases" 2>/dev/null | \
+    grep -o '"tag_name": "[^"]*"' | sed 's/"tag_name": "//;s/"//' | head -10 || echo "")
 
-  # Try to get tags (requires authentication for private repos)
-  # For public repos, we can use the GitHub API
-  tags=$(curl -s "https://api.github.com/users/nalbam/packages/container/snowclash/versions" 2>/dev/null | \
-    grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//' | head -10 || echo "")
-
-  # If API fails, try docker
   if [ -z "$tags" ]; then
     # Fallback: ask user to input version or use latest
-    log_warn "Could not fetch tags automatically."
+    log_warn "Could not fetch releases automatically."
     echo ""
     echo "Enter version to deploy (e.g., 1.0.1, latest):"
     read -p "Version [latest]: " SELECTED_VERSION
     SELECTED_VERSION=${SELECTED_VERSION:-latest}
-    # Remove 'v' prefix if present
+    # Remove 'v' prefix if present (Docker tags don't have 'v' prefix)
     SELECTED_VERSION="${SELECTED_VERSION#v}"
     return 0
   fi
@@ -74,8 +71,8 @@ select_version() {
   done <<< "$tags"
 
   echo ""
-  read -p "Select version [0]: " VERSION_CHOICE
-  VERSION_CHOICE=${VERSION_CHOICE:-0}
+  read -p "Select version [1]: " VERSION_CHOICE
+  VERSION_CHOICE=${VERSION_CHOICE:-1}
 
   if [ "$VERSION_CHOICE" = "0" ]; then
     SELECTED_VERSION="latest"
@@ -83,8 +80,8 @@ select_version() {
   else
     SELECTED_VERSION=$(echo "$tags" | sed -n "${VERSION_CHOICE}p")
     if [ -z "$SELECTED_VERSION" ]; then
-      log_warn "Invalid selection. Using latest."
-      SELECTED_VERSION="latest"
+      log_warn "Invalid selection. Using latest release."
+      SELECTED_VERSION=$(echo "$tags" | head -1)
     fi
     log_info "Selected version: $SELECTED_VERSION"
   fi
@@ -553,7 +550,7 @@ cat > "$INSTALL_DIR/restart.sh" <<EOF
 docker restart $CONTAINER_NAME
 EOF
 
-# Update script (with version selection)
+# Update script (with version selection from GitHub releases)
 cat > "$INSTALL_DIR/update.sh" <<'SCRIPT'
 #!/bin/bash
 cd /home/ec2-user/SnowClash
@@ -568,15 +565,16 @@ source .env
 
 DOCKER_IMAGE="${DOCKER_IMAGE:-ghcr.io/nalbam/snowclash}"
 CONTAINER_NAME="snowclash"
+GITHUB_REPO="nalbam/SnowClash"
 
-echo -e "${BLUE}[INFO]${NC} Fetching available versions..."
+echo -e "${BLUE}[INFO]${NC} Fetching available versions from GitHub releases..."
 
-# Try to get tags from GitHub API
-tags=$(curl -s "https://api.github.com/users/nalbam/packages/container/snowclash/versions" 2>/dev/null | \
-  grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"//' | head -10 || echo "")
+# Get release tags from GitHub API (public, no auth required)
+tags=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases" 2>/dev/null | \
+  grep -o '"tag_name": "[^"]*"' | sed 's/"tag_name": "//;s/"//' | head -10 || echo "")
 
 if [ -z "$tags" ]; then
-  echo -e "${YELLOW}[WARN]${NC} Could not fetch tags automatically."
+  echo -e "${YELLOW}[WARN]${NC} Could not fetch releases automatically."
   echo ""
   echo "Enter version to deploy (e.g., 1.0.1, latest):"
   read -p "Version [latest]: " SELECTED_VERSION
@@ -596,15 +594,15 @@ else
   done <<< "$tags"
 
   echo ""
-  read -p "Select version [0]: " VERSION_CHOICE
-  VERSION_CHOICE=${VERSION_CHOICE:-0}
+  read -p "Select version [1]: " VERSION_CHOICE
+  VERSION_CHOICE=${VERSION_CHOICE:-1}
 
   if [ "$VERSION_CHOICE" = "0" ]; then
     SELECTED_VERSION="latest"
   else
     SELECTED_VERSION=$(echo "$tags" | sed -n "${VERSION_CHOICE}p")
     if [ -z "$SELECTED_VERSION" ]; then
-      SELECTED_VERSION="latest"
+      SELECTED_VERSION=$(echo "$tags" | head -1)
     fi
   fi
   # Remove 'v' prefix if present (Docker tags don't have 'v' prefix)
