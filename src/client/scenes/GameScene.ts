@@ -16,6 +16,8 @@ export class GameScene extends Phaser.Scene {
   private room?: Room;
   private currentPlayer?: string;
   private listenersSetup: boolean = false;
+  private playersListenersSetup: boolean = false;
+  private snowballsListenersSetup: boolean = false;
 
   // Game ended flag
   private gameEnded: boolean = false;
@@ -28,6 +30,8 @@ export class GameScene extends Phaser.Scene {
   init(data: any) {
     this.room = data.room;
     this.listenersSetup = false;
+    this.playersListenersSetup = false;
+    this.snowballsListenersSetup = false;
     this.gameEnded = false;
     this.winner = '';
 
@@ -139,19 +143,19 @@ export class GameScene extends Phaser.Scene {
     if (!this.room) return;
 
     this.currentPlayer = this.room.sessionId;
-    console.log('Setting up room handlers, sessionId:', this.currentPlayer);
 
     // Listen for state changes - this is the main way to get updates
     this.room.onStateChange((state) => {
-      console.log('State change, phase:', state.phase, 'players:', state.players?.size);
-
-      // Setup collection listeners on first state change
-      if (!this.listenersSetup) {
-        this.setupCollectionListeners(state);
-      }
-
       // Sync players from state (create missing, update existing)
       this.syncPlayersFromState(state);
+    });
+
+    // Setup collection listeners after a short delay to ensure state is fully initialized
+    // This is a Colyseus timing issue - MapSchema methods are not immediately available
+    this.time.delayedCall(200, () => {
+      if (!this.listenersSetup && this.room && this.room.state) {
+        this.setupCollectionListeners(this.room.state as any);
+      }
     });
 
     this.room.onMessage('gameEnded', (message) => {
@@ -160,16 +164,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setupCollectionListeners(state: any) {
-    if (!state.players || typeof state.players.onAdd !== 'function') {
-      console.log('Collection listeners not available yet');
-      return;
-    }
+    // Try to setup players listeners (only once)
+    if (!this.playersListenersSetup && state.players && typeof state.players.onAdd === 'function') {
+      this.playersListenersSetup = true;
 
-    this.listenersSetup = true;
-    console.log('Setting up collection listeners');
-
-    state.players.onAdd((player: any, sessionId: string) => {
-      console.log('Player added:', sessionId);
+      state.players.onAdd((player: any, sessionId: string) => {
       if (this.playerRenderSystem) {
         this.playerRenderSystem.createPlayer(sessionId, player);
         // Update indicator for current player
@@ -194,32 +193,44 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    state.players.onRemove((player: any, sessionId: string) => {
-      console.log('Player removed:', sessionId);
-      if (this.playerRenderSystem) {
-        this.playerRenderSystem.removePlayer(sessionId);
-      }
-    });
-
-    state.snowballs.onAdd((snowball: any, id: string) => {
-      if (this.snowballSystem) {
-        this.snowballSystem.createSnowball(id, snowball);
-        if (typeof snowball.onChange === 'function') {
-          snowball.onChange(() => {
-            if (this.snowballSystem) {
-              this.snowballSystem.updateSnowball(id, snowball);
-            }
-          });
+      state.players.onRemove((player: any, sessionId: string) => {
+        if (this.playerRenderSystem) {
+          this.playerRenderSystem.removePlayer(sessionId);
         }
-      }
-    });
+      });
+    }
 
-    state.snowballs.onRemove((snowball: any, id: string) => {
-      if (this.snowballSystem) {
-        this.snowballSystem.removeSnowball(id, snowball);
-      }
-    });
+    // Setup snowball listeners independently (only once)
+    if (!this.snowballsListenersSetup && state.snowballs && typeof state.snowballs.onAdd === 'function') {
+      this.snowballsListenersSetup = true;
+
+      state.snowballs.onAdd((snowball: any, id: string) => {
+        if (this.snowballSystem) {
+          this.snowballSystem.createSnowball(id, snowball);
+          if (typeof snowball.onChange === 'function') {
+            snowball.onChange(() => {
+              if (this.snowballSystem) {
+                this.snowballSystem.updateSnowball(id, snowball);
+              }
+            });
+          }
+        }
+      });
+
+      state.snowballs.onRemove((snowball: any, id: string) => {
+        if (this.snowballSystem) {
+          this.snowballSystem.removeSnowball(id, snowball);
+        }
+      });
+    }
+
+    // Update overall listeners setup flag
+    if (this.playersListenersSetup && this.snowballsListenersSetup) {
+      this.listenersSetup = true;
+    }
   }
+
+  private lastSnowballIds: Set<string> = new Set();
 
   private syncPlayersFromState(state: any) {
     if (!state.players || !this.playerRenderSystem) return;
@@ -227,7 +238,6 @@ export class GameScene extends Phaser.Scene {
     // Create players that exist in state but not locally
     state.players.forEach((player: any, sessionId: string) => {
       if (!this.playerRenderSystem!.hasPlayer(sessionId)) {
-        console.log('Syncing player:', sessionId, 'at', player.x, player.y);
         this.playerRenderSystem!.createPlayer(sessionId, player);
         // Update indicator
         this.playerRenderSystem!.updatePlayerIndicator(sessionId, sessionId === this.currentPlayer, player.isBot);
@@ -243,9 +253,13 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // Sync snowballs
-    if (this.snowballSystem) {
+    // Sync snowballs - MANUAL TRACKING since collection listeners don't work
+    if (this.snowballSystem && state.snowballs) {
+      const currentSnowballIds = new Set<string>();
+
       state.snowballs.forEach((snowball: any, id: string) => {
+        currentSnowballIds.add(id);
+
         if (!this.snowballSystem!.hasSnowball(id)) {
           this.snowballSystem!.createSnowball(id, snowball);
         } else {
@@ -253,14 +267,18 @@ export class GameScene extends Phaser.Scene {
         }
       });
 
-      // 상태에 없는 눈덩이 제거 (onRemove가 호출되지 않는 경우 대비)
-      const stateSnowballIds = new Set<string>();
-      state.snowballs.forEach((_: any, id: string) => {
-        stateSnowballIds.add(id);
+      // Find snowballs that were removed (exist in last frame but not in current)
+      this.lastSnowballIds.forEach((id) => {
+        if (!currentSnowballIds.has(id)) {
+          // Get last known state for this snowball to pass to removeSnowball
+          if (this.snowballSystem!.hasSnowball(id)) {
+            this.snowballSystem!.removeSnowball(id);
+          }
+        }
       });
 
-      // Note: We cannot iterate over snowballSystem's internal map directly,
-      // but the onRemove handler should handle cleanup
+      // Update lastSnowballIds for next frame
+      this.lastSnowballIds = currentSnowballIds;
     }
   }
 
