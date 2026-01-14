@@ -93,7 +93,6 @@ jobs:
           done
 
   build-and-deploy-client:
-    needs: build-and-push-docker
     runs-on: ubuntu-latest
     environment:
       name: github-pages
