@@ -8,7 +8,7 @@ describe('BotController', () => {
 
   beforeEach(() => {
     gameState = new GameState();
-    gameState.mapSize = 600;
+    gameState.mapSize = 800;
     gameState.phase = 'lobby';
     botController = new BotController(gameState);
   });
@@ -98,9 +98,9 @@ describe('BotController', () => {
       // Check padding (20px from edges)
       [redBot!, blueBot!].forEach(bot => {
         expect(bot.x).toBeGreaterThanOrEqual(20);
-        expect(bot.x).toBeLessThanOrEqual(580);
+        expect(bot.x).toBeLessThanOrEqual(780);
         expect(bot.y).toBeGreaterThanOrEqual(20);
-        expect(bot.y).toBeLessThanOrEqual(580);
+        expect(bot.y).toBeLessThanOrEqual(780);
       });
     });
   });
@@ -343,9 +343,9 @@ describe('BotController', () => {
 
         // Should stay within map boundaries
         expect(bot!.x).toBeGreaterThanOrEqual(15);
-        expect(bot!.x).toBeLessThanOrEqual(585);
+        expect(bot!.x).toBeLessThanOrEqual(785);
         expect(bot!.y).toBeGreaterThanOrEqual(15);
-        expect(bot!.y).toBeLessThanOrEqual(585);
+        expect(bot!.y).toBeLessThanOrEqual(785);
       }
     });
   });

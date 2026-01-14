@@ -1,7 +1,13 @@
 import Phaser from 'phaser';
 import { Room } from 'colyseus.js';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
-import { MAP_SIZE } from '../../shared/constants';
+import {
+  MAP_SIZE,
+  PLAYABLE_AREA_TOP,
+  PLAYABLE_AREA_BOTTOM,
+  PLAYABLE_AREA_HEIGHT,
+  PLAYER_SPACING
+} from '../../shared/constants';
 
 export class LobbyScene extends Phaser.Scene {
   private room?: Room;
@@ -65,20 +71,20 @@ export class LobbyScene extends Phaser.Scene {
     this.drawTeamZones();
 
     // Team labels (positioned in their zones)
-    this.add.text(480, 150, 'RED', {
+    this.add.text(MAP_SIZE * 0.8, MAP_SIZE * 0.25, 'RED', {
       fontSize: '28px',
       color: '#ff0000',
       fontStyle: 'bold'
     }).setOrigin(0.5).setAlpha(0.4);
 
-    this.add.text(120, 450, 'BLUE', {
+    this.add.text(MAP_SIZE * 0.2, MAP_SIZE * 0.75, 'BLUE', {
       fontSize: '28px',
       color: '#0000ff',
       fontStyle: 'bold'
     }).setOrigin(0.5).setAlpha(0.4);
 
     // Click instruction
-    this.add.text(centerX, 300, 'Click area to change team', {
+    this.add.text(centerX, MAP_SIZE * 0.5, 'Click area to change team', {
       fontSize: '11px',
       color: '#555555',
       backgroundColor: '#ffffffcc',
@@ -86,7 +92,7 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Bottom UI panel
-    const panelY = MAP_SIZE - 60;
+    const panelY = PLAYABLE_AREA_BOTTOM - 10;
 
     // Ready button
     const readyButton = this.add.text(centerX - 100, panelY, 'Ready', {
@@ -114,9 +120,9 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawTeamZones() {
-    const topY = 70;      // Top margin for title
-    const bottomY = 530;  // Bottom margin for buttons (600 - 70)
-    const height = bottomY - topY;  // 460px available height
+    const topY = PLAYABLE_AREA_TOP;
+    const bottomY = PLAYABLE_AREA_BOTTOM;
+    const height = PLAYABLE_AREA_HEIGHT;
 
     // Red zone (top-right triangle)
     // Diagonal goes from top-left (0, topY) to bottom-right (width, bottomY)
@@ -275,22 +281,20 @@ export class LobbyScene extends Phaser.Scene {
     let x: number, y: number;
 
     if (player.team === 'red') {
-      // Red zone: triangle (0,70)-(600,70)-(600,530), centroid ~(400, 223)
-      // Arrange parallel to diagonal from (0,70) to (600,530)
+      // Red zone: arrange parallel to diagonal
       const index = this.getTeamPlayerIndex(sessionId, 'red');
-      x = 320 + index * 80;
-      y = 143 + index * 80;
+      x = MAP_SIZE * 0.54 + index * PLAYER_SPACING;
+      y = MAP_SIZE * 0.24 + index * PLAYER_SPACING;
     } else if (player.team === 'blue') {
-      // Blue zone: triangle (0,70)-(0,530)-(600,530), centroid ~(200, 377)
-      // Arrange parallel to diagonal from (0,70) to (600,530)
+      // Blue zone: arrange parallel to diagonal
       const index = this.getTeamPlayerIndex(sessionId, 'blue');
-      x = 120 + index * 80;
-      y = 297 + index * 80;
+      x = MAP_SIZE * 0.2 + index * PLAYER_SPACING;
+      y = MAP_SIZE * 0.5 + index * PLAYER_SPACING;
     } else {
       // No team - position along center diagonal
       const index = this.getNoTeamPlayerIndex(sessionId);
-      x = 220 + index * 80;
-      y = 220 + index * 80;
+      x = MAP_SIZE * 0.37 + index * PLAYER_SPACING;
+      y = MAP_SIZE * 0.37 + index * PLAYER_SPACING;
     }
 
     container.setPosition(x, y);

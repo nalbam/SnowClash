@@ -78,7 +78,7 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 All game constants are defined in `src/shared/constants.ts` and shared between server and client:
 
 **Map & Player:**
-- `MAP_SIZE`: 600px
+- `MAP_SIZE`: 800px
 - `PLAYER_SPEED`: 2
 - `PLAYER_RADIUS`: 15px
 - `PLAYER_INITIAL_ENERGY`: 10
@@ -104,6 +104,14 @@ All game constants are defined in `src/shared/constants.ts` and shared between s
 - `TERRITORY_PADDING`: 15px (distance from diagonal line)
 - `SPAWN_MARGIN`: 30px (distance from diagonal for spawning)
 - `SPAWN_PADDING`: 20px (distance from map edges for spawning)
+
+**UI Layout:**
+- `UI_HEADER_HEIGHT`: 70px (top margin for title/header)
+- `UI_FOOTER_HEIGHT`: 70px (bottom margin for buttons)
+- `MOBILE_CONTROLLER_HEIGHT`: 200px (mobile virtual controller area)
+- `PLAYABLE_AREA_TOP`: 70px (calculated: UI_HEADER_HEIGHT)
+- `PLAYABLE_AREA_BOTTOM`: 730px (calculated: MAP_SIZE - UI_FOOTER_HEIGHT)
+- `PLAYER_SPACING`: 110px (distance between players in lobby)
 
 ## Key Game Mechanics
 

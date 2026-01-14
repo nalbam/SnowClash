@@ -193,7 +193,7 @@ class GameState extends Schema {
   @type({ map: SnowballSchema }) snowballs // 현재 눈덩이들
   @type('string') phase                    // 게임 페이즈
   @type('string') winner                   // 승자
-  @type('number') mapSize                  // 맵 크기 (600)
+  @type('number') mapSize                  // 맵 크기 (800)
   @type('string') roomName                 // 룸 이름
   @type('number') botCount                 // 현재 봇 수
 }
@@ -247,8 +247,8 @@ Phaser 3 게임 설정을 정의합니다.
 ```typescript
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 600,
-  height: 600,
+  width: 800,
+  height: 800,
   parent: 'game-container',
   backgroundColor: '#1a1a2e',
   scene: [MainMenuScene, LobbyScene, GameScene],
@@ -367,10 +367,10 @@ export const config = {
 | 타이틀 | "Game Lobby" (24px, 볼드, 중앙) + 방 이름 (14px, 회색) |
 | Back 버튼 | 좌상단, 회색, 호버 시 검은색 |
 | **대각선 팀 영역** | Red (우상단 삼각형, 0.1 투명도), Blue (좌하단 삼각형, 0.1 투명도) |
-| 대각선 | (0,70)에서 (600,530)까지, 흰색 2px, 0.5 투명도 |
-| 팀 라벨 | "RED" (480,150, 28px, 0.4 투명도), "BLUE" (120,450, 28px, 0.4 투명도) |
+| 대각선 | (0,70)에서 (800,730)까지, 흰색 2px, 0.5 투명도 |
+| 팀 라벨 | "RED" (640,200, 28px, 0.4 투명도), "BLUE" (160,600, 28px, 0.4 투명도) |
 | 안내 문구 | "Click area to change team" (중앙, 11px, 반투명 흰 배경) |
-| **플레이어 위치** | 대각선에 평행하게 배치, 80px 간격 |
+| **플레이어 위치** | 대각선에 평행하게 배치, 110px 간격 |
 | 플레이어 스프라이트 | 팀 색상, 1.2x 크기 |
 | **현재 플레이어 표시** | 노란색 링 (3px, 반지름 22) |
 | **Ready 플레이어 표시** | 초록색 링 (2px, 반지름 20), ✓ 아이콘, 바운싱 애니메이션 (y: -5, 500ms yoyo) |

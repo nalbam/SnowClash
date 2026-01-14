@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Client, Room } from 'colyseus.js';
 import { config } from '../config';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
+import { MAP_SIZE } from '../../shared/constants';
 
 interface RoomInfo {
   roomId: string;
@@ -91,7 +92,7 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Red team character (left of title)
-    const redCharacter = this.add.sprite(centerX - 200, 40, 'character_red_idle');
+    const redCharacter = this.add.sprite(centerX - MAP_SIZE * 0.34, 40, 'character_red_idle');
     redCharacter.setScale(2);
     this.tweens.add({
       targets: redCharacter,
@@ -103,7 +104,7 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Blue team character (right of title)
-    const blueCharacter = this.add.sprite(centerX + 200, 40, 'character_blue_idle');
+    const blueCharacter = this.add.sprite(centerX + MAP_SIZE * 0.34, 40, 'character_blue_idle');
     blueCharacter.setScale(2);
     blueCharacter.setFlipX(true); // Face toward center
     this.tweens.add({
@@ -139,7 +140,7 @@ export class MainMenuScene extends Phaser.Scene {
     changeBtn.on('pointerout', () => changeBtn.setColor('#888888'));
 
     // Quick Play button
-    const quickPlayBtn = this.add.text(centerX - 100, 220, 'Quick Play', {
+    const quickPlayBtn = this.add.text(centerX - MAP_SIZE * 0.16, 220, 'Quick Play', {
       fontSize: '20px',
       color: '#ffffff',
       backgroundColor: '#4CAF50',
@@ -151,7 +152,7 @@ export class MainMenuScene extends Phaser.Scene {
     quickPlayBtn.on('pointerout', () => quickPlayBtn.setStyle({ backgroundColor: '#4CAF50' }));
 
     // Create Room button
-    const createRoomBtn = this.add.text(centerX + 100, 220, 'Create Room', {
+    const createRoomBtn = this.add.text(centerX + MAP_SIZE * 0.16, 220, 'Create Room', {
       fontSize: '20px',
       color: '#ffffff',
       backgroundColor: '#2196F3',
@@ -169,7 +170,7 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Refresh button (positioned to the right)
-    const refreshBtn = this.add.text(560, 280, '[Refresh]', {
+    const refreshBtn = this.add.text(MAP_SIZE - 50, 280, '[Refresh]', {
       fontSize: '12px',
       color: '#888888'
     }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
@@ -183,7 +184,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Version info at bottom
     const versionText = `Client: v${config.clientVersion} | Server: v${this.serverVersion}`;
-    this.add.text(centerX, 585, versionText, {
+    this.add.text(centerX, MAP_SIZE - 20, versionText, {
       fontSize: '10px',
       color: '#999999'
     }).setOrigin(0.5);
@@ -226,12 +227,12 @@ export class MainMenuScene extends Phaser.Scene {
     this.rooms.forEach((room, index) => {
       const y = index * 45;
 
-      // Room background (adjusted for 600px width)
+      // Room background
       const bg = this.add.graphics();
       bg.fillStyle(0xffffff, 0.8);
       bg.lineStyle(1, 0xcccccc, 1);
-      bg.fillRoundedRect(20, y, 560, 38, 8);
-      bg.strokeRoundedRect(20, y, 560, 38, 8);
+      bg.fillRoundedRect(20, y, MAP_SIZE - 40, 38, 8);
+      bg.strokeRoundedRect(20, y, MAP_SIZE - 40, 38, 8);
 
       // Room name
       const nameText = this.add.text(35, y + 10, room.roomName, {
@@ -240,13 +241,13 @@ export class MainMenuScene extends Phaser.Scene {
       });
 
       // Player count
-      const countText = this.add.text(420, y + 10, `${room.playerCount}/${room.maxPlayers}`, {
+      const countText = this.add.text(MAP_SIZE * 0.7, y + 10, `${room.playerCount}/${room.maxPlayers}`, {
         fontSize: '14px',
         color: room.playerCount >= room.maxPlayers ? '#cc0000' : '#008800'
       });
 
       // Join button
-      const joinBtn = this.add.text(500, y + 8, 'Join', {
+      const joinBtn = this.add.text(MAP_SIZE * 0.84, y + 8, 'Join', {
         fontSize: '14px',
         color: '#ffffff',
         backgroundColor: '#FF9800',

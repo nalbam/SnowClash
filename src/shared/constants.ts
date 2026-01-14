@@ -4,7 +4,7 @@
  */
 
 // Map
-export const MAP_SIZE = 600;
+export const MAP_SIZE = 800;
 
 // Player
 export const PLAYER_SPEED = 2;
@@ -34,3 +34,16 @@ export const BOT_DIRECTION_CHANGE_INTERVAL = 1000;
 export const TERRITORY_PADDING = 15; // Distance from diagonal line
 export const SPAWN_MARGIN = 30; // Distance from diagonal for spawning
 export const SPAWN_PADDING = 20; // Distance from map edges for spawning
+
+// UI Layout
+export const UI_HEADER_HEIGHT = 70; // Top margin for title/header
+export const UI_FOOTER_HEIGHT = 70; // Bottom margin for buttons
+export const MOBILE_CONTROLLER_HEIGHT = 200; // Mobile virtual controller area height
+
+// Calculated UI values
+export const PLAYABLE_AREA_TOP = UI_HEADER_HEIGHT;
+export const PLAYABLE_AREA_BOTTOM = MAP_SIZE - UI_FOOTER_HEIGHT;
+export const PLAYABLE_AREA_HEIGHT = PLAYABLE_AREA_BOTTOM - PLAYABLE_AREA_TOP;
+
+// Player positioning in lobby
+export const PLAYER_SPACING = 110; // Distance between players in lobby

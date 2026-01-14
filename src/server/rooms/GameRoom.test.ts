@@ -49,7 +49,7 @@ describe('GameRoom', () => {
       const state = room.state;
 
       expect(state).toBeDefined();
-      expect(state.mapSize).toBe(600);
+      expect(state.mapSize).toBe(800);
       expect(state.roomName).toBe('Test Room');
       expect(state.phase).toBe('lobby');
       expect(state.players.size).toBe(0);

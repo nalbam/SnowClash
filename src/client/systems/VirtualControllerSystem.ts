@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { MAP_SIZE } from '../../shared/constants';
 
 export interface VirtualControllerInput {
   moveX: number;
@@ -63,11 +64,11 @@ export class VirtualControllerSystem {
   private drawControllerBackground(): void {
     const graphics = this.scene.add.graphics();
     graphics.fillStyle(0x2a2a4a, 1);
-    graphics.fillRect(0, this.controllerY, 600, this.controllerHeight);
+    graphics.fillRect(0, this.controllerY, MAP_SIZE, this.controllerHeight);
 
     // Divider line
     graphics.lineStyle(2, 0x4a4a6a, 1);
-    graphics.lineBetween(0, this.controllerY, 600, this.controllerY);
+    graphics.lineBetween(0, this.controllerY, MAP_SIZE, this.controllerY);
   }
 
   /**

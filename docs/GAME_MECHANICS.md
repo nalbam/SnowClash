@@ -52,7 +52,7 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 
 | 상수 | 값 | 단위 | 설명 |
 |------|-----|------|------|
-| `MAP_SIZE` | 600 | 픽셀 | 게임 맵의 가로/세로 크기 |
+| `MAP_SIZE` | 800 | 픽셀 | 게임 맵의 가로/세로 크기 |
 | `PLAYER_SPEED` | 2 | px/프레임 | 플레이어 이동 속도 |
 | `SNOWBALL_SPEED` | 4 | px/프레임 | 눈덩이 이동 속도 |
 | `NORMAL_DAMAGE` | 4 | 에너지 | 일반 공격 데미지 |
@@ -64,6 +64,10 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 | `INITIAL_ENERGY` | 10 | 에너지 | 플레이어 초기 에너지 |
 | `BOT_ATTACK_INTERVAL` | 2000 | ms (2초) | 봇 공격 간격 |
 | `BOT_DIRECTION_CHANGE_INTERVAL` | 1000 | ms (1초) | 봇 방향 변경 간격 |
+| `UI_HEADER_HEIGHT` | 70 | 픽셀 | 상단 헤더 높이 |
+| `UI_FOOTER_HEIGHT` | 70 | 픽셀 | 하단 푸터 높이 |
+| `MOBILE_CONTROLLER_HEIGHT` | 200 | 픽셀 | 모바일 컨트롤러 영역 높이 |
+| `PLAYER_SPACING` | 110 | 픽셀 | 로비에서 플레이어 간 거리 |
 
 ### 상수 위치
 
@@ -73,7 +77,7 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 // src/shared/constants.ts
 
 // Map
-export const MAP_SIZE = 600;
+export const MAP_SIZE = 800;
 
 // Player
 export const PLAYER_SPEED = 2;
@@ -103,6 +107,14 @@ export const BOT_DIRECTION_CHANGE_INTERVAL = 1000;
 export const TERRITORY_PADDING = 15;
 export const SPAWN_MARGIN = 30;
 export const SPAWN_PADDING = 20;
+
+// UI Layout
+export const UI_HEADER_HEIGHT = 70;
+export const UI_FOOTER_HEIGHT = 70;
+export const MOBILE_CONTROLLER_HEIGHT = 200;
+export const PLAYABLE_AREA_TOP = UI_HEADER_HEIGHT;
+export const PLAYABLE_AREA_BOTTOM = MAP_SIZE - UI_FOOTER_HEIGHT;
+export const PLAYER_SPACING = 110;
 ```
 
 ---
@@ -307,7 +319,7 @@ if (bot.team === 'red') {
 ### 맵 분할
 
 ```
-       0                    600
+       0                    800
     0  ┌─────────────────────┐
        │╲                    │
        │  ╲    Red 영역      │
@@ -318,12 +330,12 @@ if (bot.team === 'red') {
        │            ╲        │
        │  Blue 영역   ╲      │
        │  (좌하단)      ╲    │
-  600  └─────────────────────┘
+  800  └─────────────────────┘
 ```
 
 ### 영역 공식
 
-대각선은 `(0, 0)`에서 `(600, 600)`으로 이어집니다. (`\` 모양)
+대각선은 `(0, 0)`에서 `(800, 800)`으로 이어집니다. (`\` 모양)
 
 | 팀 | 영역 조건 | 설명 |
 |----|-----------|------|
@@ -359,7 +371,7 @@ private isInPlayerTerritory(x: number, y: number, team: string): boolean {
 
 - 플레이어는 **자기 팀 영역 내에서만** 이동 가능
 - 경계를 넘어가려는 이동은 무시됨
-- 맵 바깥(0 미만, 600 초과)으로도 이동 불가
+- 맵 바깥(0 미만, 800 초과)으로도 이동 불가
 
 ---
 
@@ -799,7 +811,7 @@ player.energy = 20;         // 10 → 20
 
 **더 큰 맵**
 ```typescript
-const MAP_SIZE = 1200;      // 600 → 1200
+const MAP_SIZE = 1200;      // 800 → 1200
 ```
 
 **봇 공격 빈도 조정**
