@@ -11,43 +11,47 @@ When you push a tag starting with `v`, the GitHub Actions workflow will automati
 
 ## Creating a Release
 
-### 1. Update Version
+### Create and Push Tag
 
-Update the version in `package.json`:
-
-```json
-{
-  "version": "1.2.3"
-}
-```
-
-### 2. Commit Changes
-
-```bash
-git add package.json
-git commit -m "chore: bump version to 1.2.3"
-```
-
-### 3. Create and Push Tag
+**Note:** You don't need to manually update `package.json` version. The GitHub Actions workflow will automatically update it during the build process.
 
 ```bash
 # Create tag
 git tag v1.2.3
 
-# Push commit and tag
-git push origin main
+# Push tag
 git push origin v1.2.3
 ```
 
-Or use a single command:
+Or use an annotated tag:
 
 ```bash
 # Create annotated tag with message
 git tag -a v1.2.3 -m "Release v1.2.3"
 
-# Push both commit and tag
-git push origin main --follow-tags
+# Push tag
+git push origin v1.2.3
 ```
+
+### Optional: Update package.json
+
+If you want to keep `package.json` version in sync with releases (for local development), you can manually update it:
+
+```bash
+# Update package.json version
+npm version 1.2.3 --no-git-tag-version
+
+# Commit
+git add package.json
+git commit -m "chore: bump version to 1.2.3"
+
+# Create and push tag
+git tag v1.2.3
+git push origin main
+git push origin v1.2.3
+```
+
+However, this is **not required** as the CI/CD pipeline will handle version updates automatically during builds.
 
 ## Version Naming
 

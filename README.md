@@ -171,8 +171,11 @@ git push origin v1.0.0
 ```
 
 This will automatically:
+- 📝 Update `package.json` version to match the tag (e.g., `v1.0.0` → `1.0.0`)
 - 🌐 Build and deploy the client to **GitHub Pages**
 - 🐳 Build and push Docker image to **GitHub Container Registry** (`ghcr.io`)
+
+**Note:** You don't need to manually update `package.json` - the CI/CD pipeline handles it automatically.
 
 See **[docs/RELEASE.md](./docs/RELEASE.md)** for detailed instructions.
 

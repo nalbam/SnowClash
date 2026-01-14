@@ -237,23 +237,25 @@ Located in `.github/workflows/`:
 
 ### Creating a Release
 
-```bash
-# 1. Update version in package.json
-# 2. Commit changes
-git add package.json
-git commit -m "chore: bump version to 1.0.0"
+**Important:** The workflow automatically updates `package.json` version from the tag (e.g., `v1.0.0` → `1.0.0`). You don't need to manually update `package.json`.
 
-# 3. Create and push tag
+```bash
+# Create and push tag
 git tag v1.0.0
-git push origin main
 git push origin v1.0.0
 ```
 
 Or use annotated tag:
 ```bash
 git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin main --follow-tags
+git push origin v1.0.0
 ```
+
+The workflow will:
+1. Extract version from tag (`v1.2.3` → `1.2.3`)
+2. Update `package.json` version with `npm version <version> --no-git-tag-version`
+3. Build client and Docker image with correct version
+4. Deploy to GitHub Pages and push to ghcr.io
 
 ### Docker Image Tags
 
