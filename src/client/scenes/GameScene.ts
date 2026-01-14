@@ -4,8 +4,7 @@ import { generateCharacterTextures, createCharacterAnimations } from '../assets/
 import { SnowballSystem } from '../systems/SnowballSystem';
 import { InputSystem } from '../systems/InputSystem';
 import { PlayerRenderSystem } from '../systems/PlayerRenderSystem';
-
-const MAP_SIZE = 600;
+import { MAP_SIZE, PLAYER_SPEED, THROW_COOLDOWN, MIN_CHARGE_TIME } from '../../shared/constants';
 
 export class GameScene extends Phaser.Scene {
   // Systems
@@ -38,8 +37,8 @@ export class GameScene extends Phaser.Scene {
     // Initialize systems
     this.snowballSystem = new SnowballSystem(this);
     this.inputSystem = new InputSystem(this, {
-      throwCooldown: 1000,    // 1초 쿨다운
-      minChargeTime: 200,     // 최소 0.2초 차징 필요
+      throwCooldown: THROW_COOLDOWN,
+      minChargeTime: MIN_CHARGE_TIME,
       mapSize: MAP_SIZE
     });
     this.playerRenderSystem = new PlayerRenderSystem(this);
@@ -94,7 +93,6 @@ export class GameScene extends Phaser.Scene {
 
     // Apply client-side prediction for local player (smooth movement)
     if (input.isMoving && this.currentPlayer && playerPos) {
-      const PLAYER_SPEED = 2;
       const newX = playerPos.x + input.moveX * PLAYER_SPEED;
       const newY = playerPos.y + input.moveY * PLAYER_SPEED;
 

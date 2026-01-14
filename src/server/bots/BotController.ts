@@ -2,13 +2,18 @@ import { GameState } from '../schema/GameState';
 import { PlayerSchema } from '../schema/PlayerSchema';
 import { SnowballSchema } from '../schema/SnowballSchema';
 import { generateBotNickname } from '../utils/NicknameGenerator';
-
-const MAP_SIZE = 600;
-const SNOWBALL_SPEED = 4;
-const PLAYER_SPEED = 2;
-const NORMAL_DAMAGE = 4;
-const BOT_ATTACK_INTERVAL = 2000; // 2 seconds
-const BOT_DIRECTION_CHANGE_INTERVAL = 1000; // 1초마다 방향 변경
+import {
+  MAP_SIZE,
+  PLAYER_SPEED,
+  PLAYER_RADIUS,
+  PLAYER_INITIAL_ENERGY,
+  SNOWBALL_SPEED,
+  NORMAL_DAMAGE,
+  BOT_ATTACK_INTERVAL,
+  BOT_DIRECTION_CHANGE_INTERVAL,
+  SPAWN_MARGIN,
+  SPAWN_PADDING,
+} from '../../shared/constants';
 
 export class BotController {
   private state: GameState;
@@ -30,7 +35,7 @@ export class BotController {
     bot.team = team;
     bot.isBot = true;
     bot.isReady = true;
-    bot.energy = 10;
+    bot.energy = PLAYER_INITIAL_ENERGY;
     bot.isStunned = false;
     bot.joinedAt = Date.now();
 
@@ -48,25 +53,22 @@ export class BotController {
     const bot = this.state.players.get(botId);
     if (!bot) return;
 
-    const margin = 30;
-    const padding = 20;
-
     if (bot.team === 'red') {
-      // Red team: top-right triangle (y < x - margin)
+      // Red team: top-right triangle (y < x - SPAWN_MARGIN)
       let x, y;
       do {
-        x = padding + Math.random() * (MAP_SIZE - padding * 2);
-        y = padding + Math.random() * (MAP_SIZE - padding * 2);
-      } while (y >= x - margin);
+        x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+        y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+      } while (y >= x - SPAWN_MARGIN);
       bot.x = x;
       bot.y = y;
     } else {
-      // Blue team: bottom-left triangle (y > x + margin)
+      // Blue team: bottom-left triangle (y > x + SPAWN_MARGIN)
       let x, y;
       do {
-        x = padding + Math.random() * (MAP_SIZE - padding * 2);
-        y = padding + Math.random() * (MAP_SIZE - padding * 2);
-      } while (y <= x + margin);
+        x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+        y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+      } while (y <= x + SPAWN_MARGIN);
       bot.x = x;
       bot.y = y;
     }
@@ -145,31 +147,30 @@ export class BotController {
     const newX = bot.x + dir.dx * PLAYER_SPEED;
     const newY = bot.y + dir.dy * PLAYER_SPEED;
 
-    // 팀 영역 내인지 확인
+    // Check if within team territory
     if (this.isInTerritory(newX, newY, bot.team)) {
-      bot.x = Math.max(15, Math.min(MAP_SIZE - 15, newX));
-      bot.y = Math.max(15, Math.min(MAP_SIZE - 15, newY));
+      bot.x = Math.max(PLAYER_RADIUS, Math.min(MAP_SIZE - PLAYER_RADIUS, newX));
+      bot.y = Math.max(PLAYER_RADIUS, Math.min(MAP_SIZE - PLAYER_RADIUS, newY));
     } else {
-      // 영역 밖으로 나가면 방향 반전
+      // Reverse direction if out of bounds
       this.moveDirection.set(botId, { dx: -dir.dx, dy: -dir.dy });
     }
   }
 
   private isInTerritory(x: number, y: number, team: string): boolean {
-    // 플레이어 크기(15px) 만큼 패딩 적용
-    const playerRadius = 15;
+    // Apply padding for player size
 
-    // 맵 경계 패딩
-    if (x < playerRadius || x > MAP_SIZE - playerRadius ||
-        y < playerRadius || y > MAP_SIZE - playerRadius) {
+    // Map boundary padding
+    if (x < PLAYER_RADIUS || x > MAP_SIZE - PLAYER_RADIUS ||
+        y < PLAYER_RADIUS || y > MAP_SIZE - PLAYER_RADIUS) {
       return false;
     }
 
-    // 대각선 기준 패딩
+    // Diagonal line padding
     if (team === 'red') {
-      return y <= x - playerRadius;
+      return y <= x - PLAYER_RADIUS;
     } else {
-      return y >= x + playerRadius;
+      return y >= x + PLAYER_RADIUS;
     }
   }
 

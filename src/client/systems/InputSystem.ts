@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
-
-const MAP_SIZE = 600;
+import { MAP_SIZE } from '../../shared/constants';
 
 export interface InputState {
   moveX: number;        // Normalized movement X (-1 to 1)

@@ -1,8 +1,7 @@
 import Phaser from 'phaser';
 import { Room } from 'colyseus.js';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
-
-const MAP_SIZE = 600;
+import { MAP_SIZE } from '../../shared/constants';
 
 export class LobbyScene extends Phaser.Scene {
   private room?: Room;

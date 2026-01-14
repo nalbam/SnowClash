@@ -22,6 +22,14 @@ class MockClient {
 describe('GameRoom', () => {
   let room: GameRoom;
 
+  beforeAll(() => {
+    jest.useFakeTimers();
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     room = new GameRoom();
     // Mock setMetadata to prevent errors during testing
@@ -33,6 +41,7 @@ describe('GameRoom', () => {
     if (room) {
       room.onDispose();
     }
+    jest.clearAllTimers();
   });
 
   describe('onCreate', () => {
@@ -521,21 +530,14 @@ describe('GameRoom', () => {
       const player2 = room.state.players.get('player2');
       const initialEnergy = player2!.energy;
 
-      // Call private updateGame method via reflection
-      const updateInterval = setInterval(() => {
-        (room as any).updateGame();
-      }, 1000 / 60);
+      // Call updateGame to trigger collision detection
+      (room as any).updateGame();
 
-      // Wait a bit for collision
-      setTimeout(() => {
-        clearInterval(updateInterval);
+      // Energy should decrease or snowball should be removed
+      const energyChanged = player2!.energy < initialEnergy;
+      const snowballRemoved = !room.state.snowballs.has('test_snowball');
 
-        // Energy should decrease or snowball should be removed
-        const energyChanged = player2!.energy < initialEnergy;
-        const snowballRemoved = !room.state.snowballs.has('test_snowball');
-
-        expect(energyChanged || snowballRemoved).toBe(true);
-      }, 100);
+      expect(energyChanged || snowballRemoved).toBe(true);
     });
 
     it('should not damage teammates with friendly fire', () => {

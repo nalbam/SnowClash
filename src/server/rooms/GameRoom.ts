@@ -4,13 +4,21 @@ import { PlayerSchema } from '../schema/PlayerSchema';
 import { SnowballSchema } from '../schema/SnowballSchema';
 import { BotController } from '../bots/BotController';
 import { generateNickname } from '../utils/NicknameGenerator';
+import {
+  MAP_SIZE,
+  PLAYER_SPEED,
+  PLAYER_RADIUS,
+  SNOWBALL_SPEED,
+  SNOWBALL_RADIUS_NORMAL,
+  SNOWBALL_RADIUS_CHARGED,
+  NORMAL_DAMAGE,
+  CHARGED_DAMAGE,
+  CHARGE_THRESHOLD,
+  READY_TIMEOUT,
+  SPAWN_MARGIN,
+  SPAWN_PADDING,
+} from '../../shared/constants';
 
-const READY_TIMEOUT = 60000; // 1 minute in milliseconds
-const MAP_SIZE = 600;
-const PLAYER_SPEED = 2;
-const SNOWBALL_SPEED = 4;
-const NORMAL_DAMAGE = 4;
-const CHARGED_DAMAGE = 7;
 const MAX_PLAYERS = 6;
 const MAX_NICKNAME_LENGTH = 20;
 
@@ -104,7 +112,7 @@ export class GameRoom extends Room<GameState> {
       if (!player || player.isStunned) return;
 
       const chargeLevel = Math.min(1, Math.max(0, message.chargeLevel || 0));
-      const damage = chargeLevel >= 0.7 ? CHARGED_DAMAGE : NORMAL_DAMAGE;
+      const damage = chargeLevel >= CHARGE_THRESHOLD ? CHARGED_DAMAGE : NORMAL_DAMAGE;
 
       const snowball = new SnowballSchema();
       snowball.id = `${client.sessionId}_${Date.now()}`;
@@ -259,29 +267,26 @@ export class GameRoom extends Room<GameState> {
 
     // Initialize all player positions (including bots)
     // Spawn randomly within team territory with margin from diagonal
-    const margin = 30; // Distance from diagonal line
-    const padding = 20; // Distance from map edges
-
     const allPlayers = Array.from(this.state.players.values());
     allPlayers.forEach(player => {
       if (player.team === 'red') {
         // Red team: top-right triangle (y < x)
-        // Generate random point where y < x - margin
+        // Generate random point where y < x - SPAWN_MARGIN
         let x, y;
         do {
-          x = padding + Math.random() * (MAP_SIZE - padding * 2);
-          y = padding + Math.random() * (MAP_SIZE - padding * 2);
-        } while (y >= x - margin); // Keep trying until y < x - margin
+          x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+          y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+        } while (y >= x - SPAWN_MARGIN);
         player.x = x;
         player.y = y;
       } else {
         // Blue team: bottom-left triangle (y > x)
-        // Generate random point where y > x + margin
+        // Generate random point where y > x + SPAWN_MARGIN
         let x, y;
         do {
-          x = padding + Math.random() * (MAP_SIZE - padding * 2);
-          y = padding + Math.random() * (MAP_SIZE - padding * 2);
-        } while (y <= x + margin); // Keep trying until y > x + margin
+          x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+          y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
+        } while (y <= x + SPAWN_MARGIN);
         player.x = x;
         player.y = y;
       }
@@ -327,10 +332,9 @@ export class GameRoom extends Room<GameState> {
           Math.pow(player.y - snowball.y, 2)
         );
 
-        // 충돌 범위: 캐릭터 반지름(15) + 눈덩이 반지름(일반 5, 차지 9)
-        const playerRadius = 15;
-        const snowballRadius = snowball.damage >= CHARGED_DAMAGE ? 9 : 5;
-        const hitRadius = playerRadius + snowballRadius;
+        // Collision range: player radius + snowball radius (normal or charged)
+        const snowballRadius = snowball.damage >= CHARGED_DAMAGE ? SNOWBALL_RADIUS_CHARGED : SNOWBALL_RADIUS_NORMAL;
+        const hitRadius = PLAYER_RADIUS + snowballRadius;
 
         if (distance < hitRadius) {
           // Stunned players can still be hit (act as dummy/shield)
@@ -393,20 +397,19 @@ export class GameRoom extends Room<GameState> {
     // Map is divided by \ diagonal (top-left to bottom-right)
     // Red team territory: top-right triangle (y <= x)
     // Blue team territory: bottom-left triangle (y >= x)
-    // 플레이어 크기(15px) 만큼 패딩 적용
-    const playerRadius = 15;
+    // Apply padding for player size
 
-    // 맵 경계 패딩
-    if (x < playerRadius || x > MAP_SIZE - playerRadius ||
-        y < playerRadius || y > MAP_SIZE - playerRadius) {
+    // Map boundary padding
+    if (x < PLAYER_RADIUS || x > MAP_SIZE - PLAYER_RADIUS ||
+        y < PLAYER_RADIUS || y > MAP_SIZE - PLAYER_RADIUS) {
       return false;
     }
 
-    // 대각선 기준 패딩
+    // Diagonal line padding
     if (team === 'red') {
-      return y <= x - playerRadius;
+      return y <= x - PLAYER_RADIUS;
     } else {
-      return y >= x + playerRadius;
+      return y >= x + PLAYER_RADIUS;
     }
   }
 }
