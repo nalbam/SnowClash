@@ -57,7 +57,7 @@ cd SnowClash
 | `start.sh` | 서버 시작 |
 | `stop.sh` | 서버 중지 |
 | `restart.sh` | 서버 재시작 |
-| `update.sh` | 최신 코드 pull 및 재빌드 (비대화형) |
+| `update.sh` | 버전 선택 후 재빌드 (대화형) |
 | `logs.sh` | 로그 확인 |
 | `status.sh` | 상태 확인 |
 
@@ -102,25 +102,47 @@ pm2 restart snowclash
 
 **중요:** 업데이트 모드는 .env 파일을 수정하지 않습니다.
 
+### 버전 선택
+
+스크립트 실행 시 배포할 버전을 선택할 수 있습니다:
+
+```
+Available versions:
+  0) main (latest development)
+  1) v1.2.3
+  2) v1.2.2
+  3) v1.2.1
+  ...
+
+Select version [1]:
+```
+
+- **0**: main 브랜치 (최신 개발 버전)
+- **1~10**: 최근 릴리스 태그 (안정 버전)
+- 기본값: 1 (가장 최신 태그)
+
 ### 방법 1: 빠른 업데이트 (추천, 1-2분)
 
 ```bash
 cd ~/SnowClash/scripts
 ./deploy-ec2.sh
-# 1 선택 또는 Enter
+# 1 선택 또는 Enter (업데이트 모드)
+# 버전 선택
 ```
 
 자동으로:
-- Git pull (최신 코드)
+- 버전 선택 (태그 또는 main)
+- Git checkout (선택된 버전)
 - npm ci (의존성 설치)
 - npm run build:server (빌드)
 - pm2 restart (재시작)
 
-### 방법 2: 비대화형 업데이트 (CI/CD용)
+### 방법 2: 대화형 업데이트 (버전 선택)
 
 ```bash
 cd ~/SnowClash
 ./update.sh
+# 버전 선택
 ```
 
 ### 전체 재설치
@@ -130,7 +152,8 @@ cd ~/SnowClash
 ```bash
 cd ~/SnowClash/scripts
 ./deploy-ec2.sh
-# 2 선택
+# 2 선택 (전체 재설치)
+# 버전 선택
 ```
 
 ## 서버 상태 진단

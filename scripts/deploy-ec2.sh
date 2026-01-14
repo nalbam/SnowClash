@@ -32,6 +32,70 @@ log_error() {
   echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Select version (tag) to deploy
+select_version() {
+  local repo_dir="$1"
+  local current_dir=$(pwd)
+
+  cd "$repo_dir" 2>/dev/null || return 1
+
+  log_info "Fetching available versions..."
+  git fetch --tags --quiet
+
+  # Get recent tags (semantic version sorted)
+  local tags=$(git tag --sort=-version:refname 2>/dev/null | head -10)
+
+  if [ -z "$tags" ]; then
+    log_warn "No tags found. Using main branch."
+    SELECTED_VERSION="main"
+    cd "$current_dir"
+    return 0
+  fi
+
+  echo ""
+  echo "Available versions:"
+  echo "  0) main (latest development)"
+
+  local i=1
+  while IFS= read -r tag; do
+    echo "  $i) $tag"
+    i=$((i + 1))
+  done <<< "$tags"
+
+  echo ""
+  read -p "Select version [1]: " VERSION_CHOICE
+  VERSION_CHOICE=${VERSION_CHOICE:-1}
+
+  if [ "$VERSION_CHOICE" = "0" ]; then
+    SELECTED_VERSION="main"
+    log_info "Selected: main branch (latest)"
+  else
+    SELECTED_VERSION=$(echo "$tags" | sed -n "${VERSION_CHOICE}p")
+    if [ -z "$SELECTED_VERSION" ]; then
+      log_error "Invalid selection. Using first tag."
+      SELECTED_VERSION=$(echo "$tags" | head -1)
+    fi
+    log_info "Selected version: $SELECTED_VERSION"
+  fi
+
+  cd "$current_dir"
+  return 0
+}
+
+# Checkout selected version
+checkout_version() {
+  local version="$1"
+
+  if [ "$version" = "main" ]; then
+    log_info "Checking out main branch..."
+    git checkout main --quiet
+    git pull origin main --quiet
+  else
+    log_info "Checking out version $version..."
+    git checkout "$version" --quiet
+  fi
+}
+
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
   log_error "Please do not run as root. Run as ec2-user."
@@ -141,8 +205,9 @@ if [ "$UPDATE_MODE" = true ]; then
   # Jump to application update
   cd "$INSTALL_DIR"
 
-  log_info "Pulling latest changes..."
-  git pull origin main
+  # Select version to deploy
+  select_version "$INSTALL_DIR"
+  checkout_version "$SELECTED_VERSION"
 
   log_info "Installing dependencies..."
   if [ -f "package-lock.json" ]; then
@@ -165,6 +230,8 @@ if [ "$UPDATE_MODE" = true ]; then
   echo "=============================================="
   echo -e "${GREEN}  Update Complete!${NC}"
   echo "=============================================="
+  echo ""
+  echo "  Deployed version: $SELECTED_VERSION"
   echo ""
   echo "  Your game is available at:"
   echo -e "  ${BLUE}https://$DOMAIN${NC}"
@@ -245,13 +312,17 @@ sudo dnf install -y git
 # ============================================
 log_info "Cloning SnowClash repository..."
 if [ -d "$INSTALL_DIR" ]; then
-  log_warn "Directory exists, pulling latest changes..."
+  log_warn "Directory exists, updating repository..."
   cd "$INSTALL_DIR"
-  git pull origin main
+  git fetch --all --tags
 else
   git clone https://github.com/nalbam/SnowClash.git "$INSTALL_DIR"
   cd "$INSTALL_DIR"
 fi
+
+# Select version to deploy
+select_version "$INSTALL_DIR"
+checkout_version "$SELECTED_VERSION"
 
 # ============================================
 # 8. Install Dependencies and Build
@@ -542,21 +613,77 @@ cat > "$INSTALL_DIR/restart.sh" <<EOF
 pm2 restart $APP_NAME
 EOF
 
-# Update script
-cat > "$INSTALL_DIR/update.sh" <<EOF
+# Update script (with version selection)
+cat > "$INSTALL_DIR/update.sh" <<'SCRIPT'
 #!/bin/bash
-cd $INSTALL_DIR
-git pull origin main
+cd /home/ec2-user/SnowClash
+
+# Colors
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${BLUE}[INFO]${NC} Fetching available versions..."
+git fetch --all --tags --quiet
+
+# Get recent tags
+tags=$(git tag --sort=-version:refname 2>/dev/null | head -10)
+
+if [ -z "$tags" ]; then
+  echo -e "${YELLOW}[WARN]${NC} No tags found. Using main branch."
+  SELECTED_VERSION="main"
+else
+  echo ""
+  echo "Available versions:"
+  echo "  0) main (latest development)"
+
+  i=1
+  while IFS= read -r tag; do
+    echo "  $i) $tag"
+    i=$((i + 1))
+  done <<< "$tags"
+
+  echo ""
+  read -p "Select version [1]: " VERSION_CHOICE
+  VERSION_CHOICE=${VERSION_CHOICE:-1}
+
+  if [ "$VERSION_CHOICE" = "0" ]; then
+    SELECTED_VERSION="main"
+  else
+    SELECTED_VERSION=$(echo "$tags" | sed -n "${VERSION_CHOICE}p")
+    if [ -z "$SELECTED_VERSION" ]; then
+      SELECTED_VERSION=$(echo "$tags" | head -1)
+    fi
+  fi
+fi
+
+echo -e "${BLUE}[INFO]${NC} Checking out $SELECTED_VERSION..."
+if [ "$SELECTED_VERSION" = "main" ]; then
+  git checkout main --quiet
+  git pull origin main --quiet
+else
+  git checkout "$SELECTED_VERSION" --quiet
+fi
+
+echo -e "${BLUE}[INFO]${NC} Installing dependencies..."
 if [ -f "package-lock.json" ]; then
   npm ci --production=false
 else
   echo "Warning: package-lock.json not found, using npm install instead"
   npm install --production=false
 fi
+
+echo -e "${BLUE}[INFO]${NC} Building server..."
 npm run build:server
-pm2 restart $APP_NAME
-echo "Update completed!"
-EOF
+
+echo -e "${BLUE}[INFO]${NC} Restarting application..."
+pm2 restart snowclash
+
+echo ""
+echo -e "${GREEN}[SUCCESS]${NC} Update completed!"
+echo "  Deployed version: $SELECTED_VERSION"
+SCRIPT
 
 # Logs script
 cat > "$INSTALL_DIR/logs.sh" <<EOF
@@ -593,6 +720,8 @@ echo ""
 echo "=============================================="
 echo -e "${GREEN}  Deployment Complete!${NC}"
 echo "=============================================="
+echo ""
+echo "  Deployed version: $SELECTED_VERSION"
 echo ""
 echo "  Your game is available at:"
 echo -e "  ${BLUE}https://$DOMAIN${NC}"
