@@ -86,6 +86,12 @@ select_version() {
 checkout_version() {
   local version="$1"
 
+  # Stash any local changes (e.g., package-lock.json)
+  if [ -n "$(git status --porcelain)" ]; then
+    log_info "Stashing local changes..."
+    git stash --quiet
+  fi
+
   if [ "$version" = "main" ]; then
     log_info "Checking out main branch..."
     git checkout main --quiet
@@ -656,6 +662,12 @@ else
       SELECTED_VERSION=$(echo "$tags" | head -1)
     fi
   fi
+fi
+
+# Stash any local changes
+if [ -n "$(git status --porcelain)" ]; then
+  echo -e "${BLUE}[INFO]${NC} Stashing local changes..."
+  git stash --quiet
 fi
 
 echo -e "${BLUE}[INFO]${NC} Checking out $SELECTED_VERSION..."
