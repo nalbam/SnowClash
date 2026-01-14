@@ -47,8 +47,20 @@ cd SnowClash
 
 | 스크립트 | 설명 |
 |---------|------|
-| `deploy-ec2.sh` | 전체 배포 또는 빠른 업데이트 |
+| `deploy-ec2.sh` | Node.js + PM2 배포 (소스 빌드) |
+| `deploy-ec2-docker.sh` | Docker 컨테이너 배포 (이미지 Pull) |
 | `ec2-user-data.sh` | EC2 User Data용 초기 설정 |
+
+### 배포 방식 비교
+
+| 항목 | deploy-ec2.sh | deploy-ec2-docker.sh |
+|------|---------------|----------------------|
+| 런타임 | Node.js + PM2 | Docker |
+| 빌드 | 서버에서 소스 빌드 | 빌드된 이미지 Pull |
+| 업데이트 | git pull + npm ci + build | docker pull |
+| 메모리 | ~100MB | ~150MB (Docker 오버헤드) |
+| 장점 | 가벼움, 디버깅 용이 | 일관된 환경, 롤백 용이 |
+| 권장 | 개발/테스트 | 프로덕션 |
 
 ## 배포 후 생성되는 관리 스크립트
 
@@ -237,6 +249,67 @@ df -h
 
 # 메모리 상세
 free -h
+```
+
+## Docker 배포
+
+Docker 컨테이너로 배포하려면 `deploy-ec2-docker.sh`를 사용합니다.
+
+### Quick Start (Docker)
+
+```bash
+# SSH 접속 후
+curl -fsSL https://raw.githubusercontent.com/nalbam/SnowClash/main/scripts/deploy-ec2-docker.sh | bash
+```
+
+또는:
+
+```bash
+git clone https://github.com/nalbam/SnowClash.git
+cd SnowClash
+./scripts/deploy-ec2-docker.sh
+```
+
+### Docker 버전 선택
+
+```
+Available versions:
+  0) latest
+  1) v1.0.1
+  2) v1.0.0
+  ...
+
+Select version [0]:
+```
+
+### Docker 관리 명령어
+
+```bash
+# 컨테이너 상태 확인
+docker ps
+
+# 로그 확인
+docker logs -f snowclash
+
+# 리소스 모니터링
+docker stats snowclash
+
+# 컨테이너 재시작
+docker restart snowclash
+
+# 이전 버전으로 롤백
+docker stop snowclash
+docker rm snowclash
+docker run -d --name snowclash ... ghcr.io/nalbam/snowclash:v1.0.0
+```
+
+### Docker 이미지 정리
+
+```bash
+# 사용하지 않는 이미지 삭제
+./cleanup.sh
+# 또는
+docker image prune -af
 ```
 
 ## 수동 배포 (User Data 없이)
