@@ -67,21 +67,42 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 
 ### 상수 위치
 
-- 게임 상수: `src/server/rooms/GameRoom.ts`
-- 봇 상수: `src/server/bots/BotController.ts`
+모든 게임 상수는 서버와 클라이언트에서 공유되는 `src/shared/constants.ts`에 정의되어 있습니다.
 
 ```typescript
-// GameRoom.ts
-const READY_TIMEOUT = 60000;
-const MAP_SIZE = 600;
-const PLAYER_SPEED = 2;
-const SNOWBALL_SPEED = 4;
-const NORMAL_DAMAGE = 4;
-const CHARGED_DAMAGE = 7;
+// src/shared/constants.ts
 
-// BotController.ts
-const BOT_ATTACK_INTERVAL = 2000;
-const BOT_DIRECTION_CHANGE_INTERVAL = 1000;
+// Map
+export const MAP_SIZE = 600;
+
+// Player
+export const PLAYER_SPEED = 2;
+export const PLAYER_RADIUS = 15;
+export const PLAYER_INITIAL_ENERGY = 10;
+
+// Snowball
+export const SNOWBALL_SPEED = 4;
+export const SNOWBALL_RADIUS_NORMAL = 5;
+export const SNOWBALL_RADIUS_CHARGED = 9;
+
+// Damage
+export const NORMAL_DAMAGE = 4;
+export const CHARGED_DAMAGE = 7;
+export const CHARGE_THRESHOLD = 0.7;
+
+// Timing (milliseconds)
+export const READY_TIMEOUT = 60000;
+export const THROW_COOLDOWN = 1000;
+export const MIN_CHARGE_TIME = 200;
+
+// Bot behavior
+export const BOT_ATTACK_INTERVAL = 2000;
+export const BOT_DIRECTION_CHANGE_INTERVAL = 1000;
+
+// Territory
+export const TERRITORY_PADDING = 15;
+export const SPAWN_MARGIN = 30;
+export const SPAWN_PADDING = 20;
 ```
 
 ---

@@ -48,14 +48,21 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 - **Bots**: `src/server/bots/BotController.ts` - Bot creation, AI movement (1s direction change), attack behavior (2s interval), removal
 - **Utils**: `src/server/utils/NicknameGenerator.ts` - Random nickname generation
 
+### Shared
+- **Constants**: `src/shared/constants.ts` - Game constants shared between server and client
+
 ### Client (Phaser 3)
 - **Entry point**: `src/client/index.ts` - Phaser game config
 - **Config**: `src/client/config.ts` - Server connection settings (wsUrl, apiUrl, auto-detect HTTP/HTTPS)
 - **Assets**: `src/client/assets/PixelCharacter.ts` - Pixel art character textures and animations
+- **Systems**: `src/client/systems/` - Modular game systems
+  - `InputSystem.ts` - Keyboard, mouse, touch input handling and charge gauge
+  - `PlayerRenderSystem.ts` - Player sprite rendering, animations, and UI elements
+  - `SnowballSystem.ts` - Snowball rendering and debris effects
 - **Scenes**:
   - `MainMenuScene` - Nickname display, room list, create/join room, quick play
   - `LobbyScene` - Team selection, ready system, player list
-  - `GameScene` - Main gameplay, handles input and renders state from server
+  - `GameScene` - Main gameplay, orchestrates systems and state synchronization
 
 ### Communication Flow
 1. Client fetches nickname via REST API (`GET /api/nickname`)
@@ -68,21 +75,35 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 
 ## Game Constants
 
-Located in `src/server/rooms/GameRoom.ts`:
+All game constants are defined in `src/shared/constants.ts` and shared between server and client:
+
+**Map & Player:**
 - `MAP_SIZE`: 600px
 - `PLAYER_SPEED`: 2
+- `PLAYER_RADIUS`: 15px
+- `PLAYER_INITIAL_ENERGY`: 10
+
+**Snowball:**
 - `SNOWBALL_SPEED`: 4
+- `SNOWBALL_RADIUS_NORMAL`: 5px
+- `SNOWBALL_RADIUS_CHARGED`: 9px
 - `NORMAL_DAMAGE`: 4 (tap space)
 - `CHARGED_DAMAGE`: 7 (hold space ≥0.7s)
-- `READY_TIMEOUT`: 60000ms (auto-kick if not ready)
+- `CHARGE_THRESHOLD`: 0.7
 
-Located in `src/server/bots/BotController.ts`:
+**Timing:**
+- `READY_TIMEOUT`: 60000ms (auto-kick if not ready)
+- `THROW_COOLDOWN`: 1000ms (minimum time between throws)
+- `MIN_CHARGE_TIME`: 200ms (minimum charge time to throw)
+
+**Bot Behavior:**
 - `BOT_ATTACK_INTERVAL`: 2000ms (bot throws snowball every 2s)
 - `BOT_DIRECTION_CHANGE_INTERVAL`: 1000ms (bot changes movement direction every 1s)
 
-Located in `src/client/scenes/GameScene.ts`:
-- `THROW_COOLDOWN`: 1000ms (minimum time between throws)
-- `MIN_CHARGE_TIME`: 200ms (minimum charge time to throw)
+**Territory:**
+- `TERRITORY_PADDING`: 15px (distance from diagonal line)
+- `SPAWN_MARGIN`: 30px (distance from diagonal for spawning)
+- `SPAWN_PADDING`: 20px (distance from map edges for spawning)
 
 ## Key Game Mechanics
 

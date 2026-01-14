@@ -609,12 +609,19 @@ GameScene
 ```
 SnowClash/
 ├── src/
+│   ├── shared/                      # 공유 코드 (서버/클라이언트 공통)
+│   │   └── constants.ts             # 게임 상수 (MAP_SIZE, PLAYER_SPEED, etc.)
+│   │
 │   ├── client/                      # 클라이언트 코드
 │   │   ├── index.ts                 # Phaser 게임 설정
 │   │   ├── config.ts                # 서버 연결 설정
 │   │   ├── index.html               # HTML 템플릿
 │   │   ├── assets/
 │   │   │   └── PixelCharacter.ts    # 픽셀 아트 캐릭터 생성
+│   │   ├── systems/                 # 게임 시스템 모듈
+│   │   │   ├── InputSystem.ts       # 입력 처리 (키보드, 마우스, 터치, 차징)
+│   │   │   ├── PlayerRenderSystem.ts # 플레이어 렌더링 및 애니메이션
+│   │   │   └── SnowballSystem.ts    # 눈덩이 렌더링 및 파편 효과
 │   │   └── scenes/
 │   │       ├── MainMenuScene.ts     # 메인 메뉴 씬
 │   │       ├── LobbyScene.ts        # 로비 씬
@@ -623,15 +630,18 @@ SnowClash/
 │   └── server/                      # 서버 코드
 │       ├── index.ts                 # Express + Colyseus 설정
 │       ├── rooms/
-│       │   └── GameRoom.ts          # 게임 룸 (핵심 로직)
+│       │   ├── GameRoom.ts          # 게임 룸 (핵심 로직)
+│       │   └── GameRoom.test.ts     # 게임 룸 테스트
 │       ├── schema/
 │       │   ├── GameState.ts         # 루트 상태 스키마
 │       │   ├── PlayerSchema.ts      # 플레이어 스키마
 │       │   └── SnowballSchema.ts    # 눈덩이 스키마
 │       ├── bots/
-│       │   └── BotController.ts     # 봇 컨트롤러
+│       │   ├── BotController.ts     # 봇 컨트롤러
+│       │   └── BotController.test.ts # 봇 컨트롤러 테스트
 │       └── utils/
-│           └── NicknameGenerator.ts # 닉네임 생성 유틸리티
+│           ├── NicknameGenerator.ts # 닉네임 생성 유틸리티
+│           └── NicknameGenerator.test.ts # 닉네임 생성 테스트
 │
 ├── public/                          # 정적 파일 (빌드 결과물)
 │   ├── bundle.js                    # 클라이언트 번들
@@ -650,7 +660,7 @@ SnowClash/
 │
 ├── .github/
 │   └── workflows/
-│       └── deploy-client.yml        # GitHub Pages 배포
+│       └── release.yml              # 릴리스 자동화 (GitHub Pages + Docker)
 │
 ├── package.json                     # 의존성 및 스크립트
 ├── tsconfig.json                    # TypeScript 설정 (서버용)
