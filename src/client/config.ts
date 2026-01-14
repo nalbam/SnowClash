@@ -5,10 +5,12 @@
 declare const process: {
   env: {
     SERVER_URL: string;
+    CLIENT_VERSION: string;
   };
 };
 
 const SERVER_URL = process.env.SERVER_URL || 'localhost:2567';
+const CLIENT_VERSION = process.env.CLIENT_VERSION || '0.0.0';
 
 // Determine protocol based on current page (for production with HTTPS)
 const isSecure =
@@ -22,4 +24,5 @@ export const config = {
   serverUrl: SERVER_URL,
   wsUrl: `${wsProtocol}://${SERVER_URL}`,
   apiUrl: `${httpProtocol}://${SERVER_URL}`,
+  clientVersion: CLIENT_VERSION,
 };

@@ -7,8 +7,19 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { GameRoom } from './rooms/GameRoom';
 import { generateNickname } from './utils/NicknameGenerator';
+
+// Read version from package.json
+let SERVER_VERSION = '0.0.0';
+try {
+  const packageJson = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8'));
+  SERVER_VERSION = packageJson.version || '0.0.0';
+} catch {
+  console.warn('Could not read package.json for version');
+}
 
 const app = express();
 
@@ -124,7 +135,12 @@ app.get('/api/nickname', (req, res) => {
   res.json({ nickname: generateNickname() });
 });
 
+// REST API: Get server version
+app.get('/api/version', (req, res) => {
+  res.json({ version: SERVER_VERSION });
+});
+
 const port = Number(process.env.PORT) || 2567;
 gameServer.listen(port);
 
-console.log(`SnowClash server listening on port ${port}`);
+console.log(`SnowClash server v${SERVER_VERSION} listening on port ${port}`);

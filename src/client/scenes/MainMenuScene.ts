@@ -16,6 +16,7 @@ export class MainMenuScene extends Phaser.Scene {
   private nicknameText?: Phaser.GameObjects.Text;
   private roomListContainer?: Phaser.GameObjects.Container;
   private rooms: RoomInfo[] = [];
+  private serverVersion: string = '';
 
   constructor() {
     super({ key: 'MainMenuScene' });
@@ -29,8 +30,11 @@ export class MainMenuScene extends Phaser.Scene {
     generateCharacterTextures(this);
     createCharacterAnimations(this);
 
-    // Generate random nickname
-    await this.generateNickname();
+    // Generate random nickname and fetch server version
+    await Promise.all([
+      this.generateNickname(),
+      this.fetchServerVersion()
+    ]);
 
     this.createUI();
     this.refreshRoomList();
@@ -41,6 +45,16 @@ export class MainMenuScene extends Phaser.Scene {
       callback: () => this.refreshRoomList(),
       loop: true
     });
+  }
+
+  private async fetchServerVersion() {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/version`);
+      const data = await response.json() as { version: string };
+      this.serverVersion = data.version;
+    } catch (error) {
+      this.serverVersion = 'unknown';
+    }
   }
 
   private async generateNickname(forceNew: boolean = false) {
@@ -166,6 +180,13 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Room list container
     this.roomListContainer = this.add.container(0, 320);
+
+    // Version info at bottom
+    const versionText = `Client: v${config.clientVersion} | Server: v${this.serverVersion}`;
+    this.add.text(centerX, 585, versionText, {
+      fontSize: '10px',
+      color: '#999999'
+    }).setOrigin(0.5);
   }
 
   private async changeNickname() {
