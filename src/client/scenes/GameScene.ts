@@ -46,6 +46,9 @@ export class GameScene extends Phaser.Scene {
   private currentPointerX: number = 0;
   private currentPointerY: number = 0;
 
+  // Game ended flag
+  private gameEnded: boolean = false;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -53,6 +56,7 @@ export class GameScene extends Phaser.Scene {
   init(data: any) {
     this.room = data.room;
     this.listenersSetup = false;
+    this.gameEnded = false;
     this.players.clear();
     this.playerIndicators.clear();
     this.snowballs.clear();
@@ -121,6 +125,33 @@ export class GameScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     if (!this.room || !this.keys) return;
+
+    // Check if game has ended
+    if (this.gameEnded) {
+      // Cancel all inputs if game has ended
+      this.isPointerDown = false;
+      if (this.isCharging) {
+        this.isCharging = false;
+        if (this.chargeGauge) {
+          this.chargeGauge.clear();
+        }
+      }
+      return;
+    }
+
+    // Check game phase - only allow input during 'playing' phase
+    const gamePhase = this.room.state?.phase;
+    if (gamePhase !== 'playing') {
+      // Cancel all inputs if not in playing phase
+      this.isPointerDown = false;
+      if (this.isCharging) {
+        this.isCharging = false;
+        if (this.chargeGauge) {
+          this.chargeGauge.clear();
+        }
+      }
+      return;
+    }
 
     // Check if current player is stunned
     const currentPlayerState = this.room.state?.players?.get(this.currentPlayer || '');
@@ -635,6 +666,13 @@ export class GameScene extends Phaser.Scene {
     // Only handle left clicks (mouse button 0) or primary touch
     if (pointer.button !== 0 && pointer.button !== undefined) return;
 
+    // Check if game has ended
+    if (this.gameEnded) return;
+
+    // Check game phase - only allow input during 'playing' phase
+    const gamePhase = this.room?.state?.phase;
+    if (gamePhase !== 'playing') return;
+
     // Check if player is stunned
     const currentPlayerState = this.room?.state?.players?.get(this.currentPlayer || '');
     if (currentPlayerState?.isStunned) return;
@@ -697,6 +735,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showGameOver(winner: string) {
+    // Mark game as ended to prevent all input
+    this.gameEnded = true;
+
     const centerX = MAP_SIZE / 2;
     const centerY = MAP_SIZE / 2;
 
