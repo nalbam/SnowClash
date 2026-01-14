@@ -183,10 +183,32 @@ fi
 log_info "Starting deployment..."
 
 # ============================================
+# Check and Install Docker if needed
+# ============================================
+install_docker_if_needed() {
+  if ! command -v docker &> /dev/null; then
+    log_info "Docker not found. Installing Docker..."
+    sudo dnf install -y docker
+    sudo systemctl enable docker
+    sudo systemctl start docker
+    sudo usermod -aG docker ec2-user
+    log_success "Docker installed"
+    # Need to use sg for this session since group membership isn't active yet
+    DOCKER_CMD="sg docker -c"
+  else
+    log_info "Docker is already installed"
+    DOCKER_CMD=""
+  fi
+}
+
+# ============================================
 # QUICK UPDATE MODE (Docker)
 # ============================================
 if [ "$UPDATE_MODE" = true ]; then
   log_info "Quick update mode: Updating Docker container..."
+
+  # Check Docker installation
+  install_docker_if_needed
 
   # Select version
   select_version
@@ -194,23 +216,32 @@ if [ "$UPDATE_MODE" = true ]; then
   # Load environment from .env
   source "$INSTALL_DIR/.env"
 
+  # Define docker run function based on whether we need sg
+  run_docker() {
+    if [ -n "$DOCKER_CMD" ]; then
+      sg docker -c "$*"
+    else
+      eval "$*"
+    fi
+  }
+
   log_info "Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
-  docker pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
+  run_docker "docker pull '${DOCKER_IMAGE}:${SELECTED_VERSION}'"
 
   log_info "Stopping existing container..."
-  docker stop "$CONTAINER_NAME" 2>/dev/null || true
-  docker rm "$CONTAINER_NAME" 2>/dev/null || true
+  run_docker "docker stop '$CONTAINER_NAME'" 2>/dev/null || true
+  run_docker "docker rm '$CONTAINER_NAME'" 2>/dev/null || true
 
   log_info "Starting new container..."
-  docker run -d \
-    --name "$CONTAINER_NAME" \
+  run_docker "docker run -d \
+    --name '$CONTAINER_NAME' \
     --restart unless-stopped \
     -p 127.0.0.1:${APP_PORT}:${APP_PORT} \
     -e NODE_ENV=production \
     -e PORT=${APP_PORT} \
-    -e ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
-    ${REDIS_URL:+-e REDIS_URL="${REDIS_URL}"} \
-    "${DOCKER_IMAGE}:${SELECTED_VERSION}"
+    -e ALLOWED_ORIGINS='${ALLOWED_ORIGINS}' \
+    ${REDIS_URL:+-e REDIS_URL='${REDIS_URL}'} \
+    '${DOCKER_IMAGE}:${SELECTED_VERSION}'"
 
   # Update version in .env
   sed -i "s/^DOCKER_TAG=.*/DOCKER_TAG=${SELECTED_VERSION}/" "$INSTALL_DIR/.env" 2>/dev/null || \
@@ -250,17 +281,7 @@ sudo dnf update -y
 # ============================================
 # 2. Install Docker
 # ============================================
-log_info "Installing Docker..."
-sudo dnf install -y docker
-
-# Start and enable Docker
-sudo systemctl enable docker
-sudo systemctl start docker
-
-# Add ec2-user to docker group
-sudo usermod -aG docker ec2-user
-
-log_success "Docker installed"
+install_docker_if_needed
 
 # ============================================
 # 3. Install Nginx
