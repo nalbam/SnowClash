@@ -22,6 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   input: {
+    activePointers: 2, // Enable multi-touch for joystick + attack button
     touch: {
       capture: true
     }

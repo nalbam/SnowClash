@@ -22,12 +22,14 @@ export class VirtualControllerSystem {
   private joystickBase?: Phaser.GameObjects.Arc;
   private joystickThumb?: Phaser.GameObjects.Arc;
   private joystickActive: boolean = false;
+  private joystickPointerId: number = -1; // Track which pointer is controlling joystick
   private joystickVector = { x: 0, y: 0 };
 
   // Attack button components
   private attackButton?: Phaser.GameObjects.Arc;
   private attackButtonInner?: Phaser.GameObjects.Arc;
   private attackActive: boolean = false;
+  private attackPointerId: number = -1; // Track which pointer is controlling attack
   private attackChargeStartTime: number = 0;
   private attackShouldThrow: boolean = false;
 
@@ -88,22 +90,31 @@ export class VirtualControllerSystem {
       .setInteractive();
 
     joystickZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.joystickActive = true;
-      this.updateJoystickPosition(pointer);
-    });
-
-    joystickZone.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.joystickActive && pointer.isDown) {
+      // Only activate if not already controlled by another pointer
+      if (!this.joystickActive) {
+        this.joystickActive = true;
+        this.joystickPointerId = pointer.id;
         this.updateJoystickPosition(pointer);
       }
     });
 
-    joystickZone.on('pointerup', () => {
-      this.resetJoystick();
+    joystickZone.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      // Only respond to the pointer that started on this zone
+      if (this.joystickActive && pointer.id === this.joystickPointerId && pointer.isDown) {
+        this.updateJoystickPosition(pointer);
+      }
+    });
+
+    joystickZone.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      // Only reset if this is the controlling pointer
+      if (pointer.id === this.joystickPointerId) {
+        this.resetJoystick();
+      }
     });
 
     joystickZone.on('pointerout', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.isDown) {
+      // Only reset if this is the controlling pointer and it's released
+      if (pointer.id === this.joystickPointerId && !pointer.isDown) {
         this.resetJoystick();
       }
     });
@@ -133,26 +144,34 @@ export class VirtualControllerSystem {
     const attackZone = this.scene.add.zone(centerX, centerY, this.attackButtonRadius * 3, this.controllerHeight)
       .setInteractive();
 
-    attackZone.on('pointerdown', () => {
-      this.attackActive = true;
-      this.attackChargeStartTime = this.scene.time.now;
-      this.attackShouldThrow = false;
+    attackZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Only activate if not already controlled by another pointer
+      if (!this.attackActive) {
+        this.attackActive = true;
+        this.attackPointerId = pointer.id;
+        this.attackChargeStartTime = this.scene.time.now;
+        this.attackShouldThrow = false;
 
-      // Visual feedback
-      if (this.attackButtonInner) {
-        this.attackButtonInner.setFillStyle(0xaa6666);
+        // Visual feedback
+        if (this.attackButtonInner) {
+          this.attackButtonInner.setFillStyle(0xaa6666);
+        }
       }
     });
 
-    attackZone.on('pointerup', () => {
-      if (this.attackActive) {
-        this.attackShouldThrow = true;
+    attackZone.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      // Only respond to the controlling pointer
+      if (pointer.id === this.attackPointerId) {
+        if (this.attackActive) {
+          this.attackShouldThrow = true;
+        }
+        this.releaseAttackButton();
       }
-      this.releaseAttackButton();
     });
 
     attackZone.on('pointerout', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.isDown && this.attackActive) {
+      // Only respond to the controlling pointer when released
+      if (pointer.id === this.attackPointerId && !pointer.isDown && this.attackActive) {
         this.attackShouldThrow = true;
         this.releaseAttackButton();
       }
@@ -202,6 +221,7 @@ export class VirtualControllerSystem {
    */
   private resetJoystick(): void {
     this.joystickActive = false;
+    this.joystickPointerId = -1;
     this.joystickVector = { x: 0, y: 0 };
 
     if (this.joystickBase && this.joystickThumb) {
@@ -215,6 +235,7 @@ export class VirtualControllerSystem {
    */
   private releaseAttackButton(): void {
     this.attackActive = false;
+    this.attackPointerId = -1;
 
     // Reset visual
     if (this.attackButtonInner) {
@@ -293,6 +314,7 @@ export class VirtualControllerSystem {
   public cancelInput(): void {
     this.resetJoystick();
     this.releaseAttackButton();
+    this.attackShouldThrow = false;
   }
 
   /**
