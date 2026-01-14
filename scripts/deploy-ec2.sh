@@ -467,7 +467,7 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 2567,
-      ALLOWED_ORIGINS: 'https://$DOMAIN'
+      ALLOWED_ORIGINS: '$ALLOWED_ORIGINS'
     },
     max_memory_restart: '500M',
     log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
