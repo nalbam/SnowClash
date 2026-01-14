@@ -48,6 +48,7 @@ export class GameScene extends Phaser.Scene {
 
   // Game ended flag
   private gameEnded: boolean = false;
+  private winner: string = '';
 
   constructor() {
     super({ key: 'GameScene' });
@@ -57,6 +58,7 @@ export class GameScene extends Phaser.Scene {
     this.room = data.room;
     this.listenersSetup = false;
     this.gameEnded = false;
+    this.winner = '';
     this.players.clear();
     this.playerIndicators.clear();
     this.snowballs.clear();
@@ -126,39 +128,42 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number) {
     if (!this.room || !this.keys) return;
 
-    // Check if game has ended
-    if (this.gameEnded) {
-      // Cancel all inputs if game has ended
-      this.isPointerDown = false;
-      if (this.isCharging) {
-        this.isCharging = false;
-        if (this.chargeGauge) {
-          this.chargeGauge.clear();
-        }
-      }
-      return;
-    }
-
-    // Check game phase - only allow input during 'playing' phase
-    const gamePhase = this.room.state?.phase;
-    if (gamePhase !== 'playing') {
-      // Cancel all inputs if not in playing phase
-      this.isPointerDown = false;
-      if (this.isCharging) {
-        this.isCharging = false;
-        if (this.chargeGauge) {
-          this.chargeGauge.clear();
-        }
-      }
-      return;
-    }
-
-    // Check if current player is stunned
+    // Get current player state
     const currentPlayerState = this.room.state?.players?.get(this.currentPlayer || '');
+    const isWinningTeam = this.gameEnded && this.winner !== 'draw' && this.winner === currentPlayerState?.team;
+
+    // Check if game has ended
+    if (this.gameEnded && !isWinningTeam) {
+      // Cancel all inputs if game has ended (except for winning team)
+      this.isPointerDown = false;
+      if (this.isCharging) {
+        this.isCharging = false;
+        if (this.chargeGauge) {
+          this.chargeGauge.clear();
+        }
+      }
+      return;
+    }
+
+    // Check game phase - only allow input during 'playing' phase (or 'ended' for winning team)
+    const gamePhase = this.room.state?.phase;
+    if (gamePhase !== 'playing' && !isWinningTeam) {
+      // Cancel all inputs if not in playing phase (unless winning team after game ends)
+      this.isPointerDown = false;
+      if (this.isCharging) {
+        this.isCharging = false;
+        if (this.chargeGauge) {
+          this.chargeGauge.clear();
+        }
+      }
+      return;
+    }
+
+    // Check if current player is stunned (winning team ignores stunned state)
     const isStunned = currentPlayerState?.isStunned || false;
 
-    // If stunned, cancel all inputs
-    if (isStunned) {
+    // If stunned and not winning team, cancel all inputs
+    if (isStunned && !isWinningTeam) {
       this.isPointerDown = false;
       if (this.isCharging) {
         this.isCharging = false;
@@ -252,8 +257,10 @@ export class GameScene extends Phaser.Scene {
       this.room.send('move', { x: moveX, y: moveY });
     }
 
-    // Handle snowball charging/throwing
-    this.handleSnowballInput(time);
+    // Handle snowball charging/throwing (blocked if game ended)
+    if (!this.gameEnded) {
+      this.handleSnowballInput(time);
+    }
   }
 
   private drawMap() {
@@ -445,8 +452,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Determine animation state
-    if (player.isStunned) {
-      // Stunned state
+    const isWinningTeam = this.gameEnded && this.winner !== 'draw' && this.winner === team;
+
+    if (player.isStunned && !isWinningTeam) {
+      // Stunned state (unless winning team)
       const stunnedKey = `character_${team}_stunned`;
       sprite.setTexture(stunnedKey);
       sprite.setAlpha(0.6);
@@ -459,11 +468,20 @@ export class GameScene extends Phaser.Scene {
         sprite.play(walkAnim);
       }
     } else {
-      // Idle state
+      // Idle or cheer state
       sprite.setAlpha(1);
-      const idleKey = `character_${team}_idle`;
-      sprite.setTexture(idleKey);
-      sprite.anims.stop();
+      if (isWinningTeam) {
+        // Cheer animation for winning team
+        const cheerAnim = `${team}_cheer`;
+        if (sprite.anims.currentAnim?.key !== cheerAnim) {
+          sprite.play(cheerAnim);
+        }
+      } else {
+        // Idle state
+        const idleKey = `character_${team}_idle`;
+        sprite.setTexture(idleKey);
+        sprite.anims.stop();
+      }
     }
 
     // Update last position (use server position for tracking movement state)
@@ -499,6 +517,11 @@ export class GameScene extends Phaser.Scene {
     const energyBar = this.energyBars.get(sessionId);
     if (energyBar) {
       energyBar.clear();
+
+      // Don't draw energy bars if game has ended
+      if (this.gameEnded) {
+        return;
+      }
 
       // Initialize displayEnergy if not set
       const currentEnergy = sprite.displayEnergy ?? player.energy;
@@ -666,16 +689,19 @@ export class GameScene extends Phaser.Scene {
     // Only handle left clicks (mouse button 0) or primary touch
     if (pointer.button !== 0 && pointer.button !== undefined) return;
 
-    // Check if game has ended
-    if (this.gameEnded) return;
-
-    // Check game phase - only allow input during 'playing' phase
-    const gamePhase = this.room?.state?.phase;
-    if (gamePhase !== 'playing') return;
-
-    // Check if player is stunned
+    // Get current player state
     const currentPlayerState = this.room?.state?.players?.get(this.currentPlayer || '');
-    if (currentPlayerState?.isStunned) return;
+    const isWinningTeam = this.gameEnded && this.winner !== 'draw' && this.winner === currentPlayerState?.team;
+
+    // Check if game has ended (except for winning team)
+    if (this.gameEnded && !isWinningTeam) return;
+
+    // Check game phase - only allow input during 'playing' phase (or 'ended' for winning team)
+    const gamePhase = this.room?.state?.phase;
+    if (gamePhase !== 'playing' && !isWinningTeam) return;
+
+    // Check if player is stunned (winning team ignores stunned state)
+    if (currentPlayerState?.isStunned && !isWinningTeam) return;
 
     // Ignore clicks outside the map
     if (pointer.x < 0 || pointer.x > MAP_SIZE || pointer.y < 0 || pointer.y > MAP_SIZE) return;
@@ -735,26 +761,38 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showGameOver(winner: string) {
-    // Mark game as ended to prevent all input
+    // Mark game as ended and store winner
     this.gameEnded = true;
+    this.winner = winner;
 
     const centerX = MAP_SIZE / 2;
     const centerY = MAP_SIZE / 2;
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x000000, 0.7);
+    bg.fillStyle(0x000000, 0.2);
     bg.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
 
     let message = '';
     let color = '#ffffff';
 
+    // Get current player's team
+    const currentPlayerState = this.room?.state?.players?.get(this.currentPlayer || '');
+    const myTeam = currentPlayerState?.team;
+
     if (winner === 'draw') {
       message = 'Draw!';
-    } else {
-      const winnerTeam = winner === 'red' ? 'Red' : 'Blue';
+      color = '#ffffff';
+    } else if (myTeam && myTeam === winner) {
+      // Player won
+      message = 'You Win!';
       color = winner === 'red' ? '#ff0000' : '#0000ff';
-      message = `${winnerTeam} Team Wins!`;
+    } else {
+      // Player lost
+      message = 'You Lose!';
+      color = '#666666';
     }
+
+    // Animation is handled by updatePlayer automatically
 
     this.add.text(centerX, centerY, message, {
       fontSize: '48px',
@@ -762,18 +800,53 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.add.text(centerX, centerY + 60, 'Returning to main menu...', {
+    // Create return button
+    const buttonY = centerY + 80;
+    const buttonWidth = 260;
+    const buttonHeight = 50;
+
+    // Button background
+    const buttonBg = this.add.graphics();
+    buttonBg.fillStyle(0x4CAF50, 1);
+    buttonBg.fillRoundedRect(centerX - buttonWidth / 2, buttonY - buttonHeight / 2, buttonWidth, buttonHeight, 10);
+    buttonBg.lineStyle(3, 0xffffff, 1);
+    buttonBg.strokeRoundedRect(centerX - buttonWidth / 2, buttonY - buttonHeight / 2, buttonWidth, buttonHeight, 10);
+
+    // Button text
+    const buttonText = this.add.text(centerX, buttonY, 'Return to Menu', {
       fontSize: '24px',
-      color: '#ffffff'
+      color: '#ffffff',
+      fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Leave current room
-    if (this.room) {
-      this.room.leave();
-    }
+    // Make button interactive
+    const buttonZone = this.add.zone(centerX, buttonY, buttonWidth, buttonHeight)
+      .setInteractive({ useHandCursor: true });
 
-    // Return to main menu after 5 seconds
-    this.time.delayedCall(5000, () => {
+    // Button hover effect
+    buttonZone.on('pointerover', () => {
+      buttonBg.clear();
+      buttonBg.fillStyle(0x66BB6A, 1);
+      buttonBg.fillRoundedRect(centerX - buttonWidth / 2, buttonY - buttonHeight / 2, buttonWidth, buttonHeight, 10);
+      buttonBg.lineStyle(3, 0xffffff, 1);
+      buttonBg.strokeRoundedRect(centerX - buttonWidth / 2, buttonY - buttonHeight / 2, buttonWidth, buttonHeight, 10);
+    });
+
+    buttonZone.on('pointerout', () => {
+      buttonBg.clear();
+      buttonBg.fillStyle(0x4CAF50, 1);
+      buttonBg.fillRoundedRect(centerX - buttonWidth / 2, buttonY - buttonHeight / 2, buttonWidth, buttonHeight, 10);
+      buttonBg.lineStyle(3, 0xffffff, 1);
+      buttonBg.strokeRoundedRect(centerX - buttonWidth / 2, buttonY - buttonHeight / 2, buttonWidth, buttonHeight, 10);
+    });
+
+    // Button click handler
+    buttonZone.on('pointerdown', () => {
+      // Leave current room
+      if (this.room) {
+        this.room.leave();
+      }
+      // Return to main menu
       this.scene.start('MainMenuScene');
     });
   }

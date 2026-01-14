@@ -99,6 +99,11 @@ export class BotController {
   }
 
   updateBots(currentTime: number): void {
+    // Stop bot updates if game is not in playing phase
+    if (this.state.phase !== 'playing') {
+      return;
+    }
+
     this.botIds.forEach(botId => {
       const bot = this.state.players.get(botId);
       if (!bot || bot.isStunned) return;

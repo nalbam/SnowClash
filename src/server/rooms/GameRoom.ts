@@ -334,7 +334,8 @@ export class GameRoom extends Room<GameState> {
 
         if (distance < hitRadius) {
           // Stunned players can still be hit (act as dummy/shield)
-          if (!player.isStunned) {
+          // Don't apply damage if game has ended
+          if (!player.isStunned && this.state.phase === 'playing') {
             player.energy -= snowball.damage;
             if (player.energy <= 0) {
               player.isStunned = true;
