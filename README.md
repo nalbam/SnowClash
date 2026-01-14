@@ -158,6 +158,23 @@ For more detailed information, see the **[Documentation Index](./docs/README.md)
 ### Deployment
 - **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[Google OAuth Setup](./docs/GOOGLE_OAUTH_SETUP.md)** - OAuth 2.0 configuration
+- **[Release Guide](./docs/RELEASE.md)** - Creating releases and deploying with GitHub Actions
+
+## Release Process
+
+Releases are automated via GitHub Actions when you push a tag starting with `v`:
+
+```bash
+# Create and push a release tag
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This will automatically:
+- 🌐 Build and deploy the client to **GitHub Pages**
+- 🐳 Build and push Docker image to **GitHub Container Registry** (`ghcr.io`)
+
+See **[docs/RELEASE.md](./docs/RELEASE.md)** for detailed instructions.
 
 ## License
 

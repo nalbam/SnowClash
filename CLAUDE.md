@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Documentation Guidelines
+
+**IMPORTANT**: All documentation files must be stored in the `docs/` directory.
+
+- ✅ **Correct**: `docs/RELEASE.md`, `docs/ARCHITECTURE.md`, `docs/API.md`
+- ❌ **Wrong**: `RELEASE.md` (in root), `guide/RELEASE.md`, etc.
+
+**Exceptions**: Only the following files are allowed in the root:
+- `README.md` - Main project overview
+- `CLAUDE.md` - This file
+- `LICENSE` - License file
+- `.gitignore`, `.dockerignore`, etc. - Configuration files
+
 ## Common Commands
 
 ```bash
@@ -198,3 +211,63 @@ When `REDIS_URL` is set, multiple server instances share room information:
 - **RedisPresence**: Shares room metadata across servers
 - **RedisDriver**: Enables room queries across all servers
 - **Load Balancer**: Required for production (Nginx with ip_hash recommended)
+
+## Release and Deployment
+
+### GitHub Actions Workflows
+
+Located in `.github/workflows/`:
+
+**release.yml** - Automated release workflow
+- **Trigger**: Tag push with `v*` pattern (e.g., `v1.0.0`, `v1.2.3`)
+- **Jobs**:
+  1. **build-and-deploy-client**:
+     - Builds client with `npm run build`
+     - Deploys to GitHub Pages
+     - URL: `https://<username>.github.io/SnowClash/`
+  2. **build-and-push-docker**:
+     - Builds Docker image using `Dockerfile`
+     - Pushes to GitHub Container Registry (ghcr.io)
+     - Tags: `v1.2.3`, `v1.2`, `v1`, `latest`
+     - Multi-platform: `linux/amd64`, `linux/arm64`
+
+**deploy-client.yml.disabled** - Old workflow (disabled)
+- Previously triggered on main branch push
+- Renamed to `.disabled` to prevent execution
+
+### Creating a Release
+
+```bash
+# 1. Update version in package.json
+# 2. Commit changes
+git add package.json
+git commit -m "chore: bump version to 1.0.0"
+
+# 3. Create and push tag
+git tag v1.0.0
+git push origin main
+git push origin v1.0.0
+```
+
+Or use annotated tag:
+```bash
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin main --follow-tags
+```
+
+### Docker Image Tags
+
+For release `v1.2.3`, the following tags are created:
+- `ghcr.io/<username>/snowclash:v1.2.3` - Exact version
+- `ghcr.io/<username>/snowclash:v1.2` - Minor version
+- `ghcr.io/<username>/snowclash:v1` - Major version
+- `ghcr.io/<username>/snowclash:latest` - Latest release
+
+### Required GitHub Settings
+
+1. **GitHub Pages**: Settings → Pages → Source: GitHub Actions
+2. **Workflow Permissions**: Settings → Actions → General → Workflow permissions: Read and write ✅
+3. **Repository Variables** (optional): Settings → Secrets and variables → Actions → Variables
+   - `SERVER_URL`: Default server URL for client builds
+
+See **[docs/RELEASE.md](./docs/RELEASE.md)** for detailed release instructions.
