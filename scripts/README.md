@@ -47,7 +47,7 @@ cd SnowClash
 
 | 스크립트 | 설명 |
 |---------|------|
-| `deploy-ec2.sh` | 전체 배포 (Node.js, PM2, Nginx, SSL 설정) |
+| `deploy-ec2.sh` | 전체 배포 또는 빠른 업데이트 |
 | `ec2-user-data.sh` | EC2 User Data용 초기 설정 |
 
 ## 배포 후 생성되는 관리 스크립트
@@ -57,9 +57,44 @@ cd SnowClash
 | `start.sh` | 서버 시작 |
 | `stop.sh` | 서버 중지 |
 | `restart.sh` | 서버 재시작 |
-| `update.sh` | 최신 코드 pull 및 재빌드 |
+| `update.sh` | 최신 코드 pull 및 재빌드 (비대화형) |
 | `logs.sh` | 로그 확인 |
 | `status.sh` | 상태 확인 |
+
+## 게임 업데이트
+
+기존 설치를 최신 버전으로 업데이트하는 방법:
+
+### 방법 1: 빠른 업데이트 (추천, 1-2분)
+
+```bash
+cd ~/SnowClash/scripts
+./deploy-ec2.sh
+# 1 선택 또는 Enter
+```
+
+자동으로:
+- Git pull (최신 코드)
+- npm ci (의존성 설치)
+- npm run build:server (빌드)
+- pm2 restart (재시작)
+
+### 방법 2: 비대화형 업데이트 (CI/CD용)
+
+```bash
+cd ~/SnowClash
+./update.sh
+```
+
+### 전체 재설치
+
+도메인/SSL 변경 시:
+
+```bash
+cd ~/SnowClash/scripts
+./deploy-ec2.sh
+# 2 선택
+```
 
 ## 수동 배포 (User Data 없이)
 
@@ -97,10 +132,45 @@ cd SnowClash
 
 ## 문제 해결
 
+### 업데이트 후 서버 시작 실패
+
+```bash
+# 로그 확인
+pm2 logs snowclash --lines 50
+
+# PM2 프로세스 완전히 제거 후 재시작
+pm2 delete snowclash
+pm2 start ecosystem.config.js
+pm2 save
+```
+
+### Git pull 충돌
+
+```bash
+cd ~/SnowClash
+
+# 로컬 변경사항 백업 후 업데이트
+git stash
+git pull origin main
+
+# 또는 로컬 변경사항 버리기
+git reset --hard origin/main
+```
+
+### 의존성 문제
+
+```bash
+cd ~/SnowClash
+rm -rf node_modules package-lock.json
+npm install
+npm run build:server
+pm2 restart snowclash
+```
+
 ### SSL 인증서 발급 실패
 
 ```bash
-# DNS가 올바르게 설정되었는지 확인
+# DNS 확인
 dig +short your-domain.com
 
 # Certbot 수동 실행
@@ -110,22 +180,14 @@ sudo certbot certonly --nginx -d your-domain.com
 ### PM2 프로세스 문제
 
 ```bash
-# 프로세스 상태 확인
 pm2 status
-
-# 로그 확인
 pm2 logs snowclash
-
-# 재시작
 pm2 restart snowclash
 ```
 
 ### Nginx 설정 문제
 
 ```bash
-# 설정 테스트
 sudo nginx -t
-
-# 로그 확인
 sudo tail -f /var/log/nginx/error.log
 ```

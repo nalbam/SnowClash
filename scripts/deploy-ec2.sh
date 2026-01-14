@@ -44,55 +44,138 @@ echo "       SnowClash EC2 Deployment Script"
 echo "=============================================="
 echo ""
 
+# Installation directory
+INSTALL_DIR="/home/ec2-user/SnowClash"
+APP_NAME="snowclash"
+
+# Detect if this is an update or fresh install
+UPDATE_MODE=false
+if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/.env" ] && pm2 list 2>/dev/null | grep -q "$APP_NAME"; then
+  UPDATE_MODE=true
+  log_info "Existing installation detected."
+  echo ""
+  echo "What would you like to do?"
+  echo "  1) Update game to latest version (quick)"
+  echo "  2) Full reinstall (reconfigure everything)"
+  echo ""
+  read -p "Choose option (1/2) [1]: " INSTALL_MODE
+  INSTALL_MODE=${INSTALL_MODE:-1}
+
+  if [ "$INSTALL_MODE" = "1" ]; then
+    UPDATE_MODE=true
+    log_info "Update mode selected"
+  else
+    UPDATE_MODE=false
+    log_info "Full reinstall mode selected"
+  fi
+fi
+
 # Load defaults from .env if exists
 DEFAULT_DOMAIN=""
-if [ -f ".env" ]; then
+ALLOWED_ORIGINS=""
+if [ -f "$INSTALL_DIR/.env" ]; then
+  DEFAULT_DOMAIN=$(grep -E "^ALLOWED_ORIGINS=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | sed 's|https://||' | xargs)
+  ALLOWED_ORIGINS=$(grep -E "^ALLOWED_ORIGINS=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
+elif [ -f ".env" ]; then
   DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 elif [ -f "../.env" ]; then
   DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" ../.env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 fi
 
-# Get domain name
-if [ -n "$DEFAULT_DOMAIN" ]; then
-  read -p "Enter your domain name [$DEFAULT_DOMAIN]: " DOMAIN
-  DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
+# Skip configuration prompts in update mode
+if [ "$UPDATE_MODE" = true ]; then
+  DOMAIN="$DEFAULT_DOMAIN"
+  EMAIL=""
+
+  if [ -z "$DOMAIN" ]; then
+    log_error "Cannot determine domain from existing configuration!"
+    exit 1
+  fi
+
+  log_info "Using existing configuration: $DOMAIN"
 else
-  read -p "Enter your domain name (e.g., game.example.com): " DOMAIN
+  # Get domain name for fresh install
+  if [ -n "$DEFAULT_DOMAIN" ]; then
+    read -p "Enter your domain name [$DEFAULT_DOMAIN]: " DOMAIN
+    DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
+  else
+    read -p "Enter your domain name (e.g., game.example.com): " DOMAIN
+  fi
+
+  if [ -z "$DOMAIN" ]; then
+    log_error "Domain name is required!"
+    exit 1
+  fi
+
+  # Get email for Let's Encrypt (default: admin@domain)
+  DEFAULT_EMAIL="admin@$DOMAIN"
+  read -p "Enter your email for Let's Encrypt [$DEFAULT_EMAIL]: " EMAIL
+  EMAIL=${EMAIL:-$DEFAULT_EMAIL}
+
+  if [ -z "$EMAIL" ]; then
+    log_error "Email is required for Let's Encrypt!"
+    exit 1
+  fi
+
+  # Confirm settings
+  echo ""
+  echo "=============================================="
+  echo "  Domain: $DOMAIN"
+  echo "  Email:  $EMAIL"
+  echo "=============================================="
+  echo ""
+  read -p "Continue with these settings? (y/n): " CONFIRM
+  if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
+    log_warn "Deployment cancelled."
+    exit 0
+  fi
 fi
 
-if [ -z "$DOMAIN" ]; then
-  log_error "Domain name is required!"
-  exit 1
-fi
+log_info "Starting deployment..."
 
-# Get email for Let's Encrypt (default: admin@domain)
-DEFAULT_EMAIL="admin@$DOMAIN"
-read -p "Enter your email for Let's Encrypt [$DEFAULT_EMAIL]: " EMAIL
-EMAIL=${EMAIL:-$DEFAULT_EMAIL}
+# ============================================
+# QUICK UPDATE MODE
+# ============================================
+if [ "$UPDATE_MODE" = true ]; then
+  log_info "Quick update mode: Skipping system setup..."
 
-if [ -z "$EMAIL" ]; then
-  log_error "Email is required for Let's Encrypt!"
-  exit 1
-fi
+  # Jump to application update
+  cd "$INSTALL_DIR"
 
-# Confirm settings
-echo ""
-echo "=============================================="
-echo "  Domain: $DOMAIN"
-echo "  Email:  $EMAIL"
-echo "=============================================="
-echo ""
-read -p "Continue with these settings? (y/n): " CONFIRM
-if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
-  log_warn "Deployment cancelled."
+  log_info "Pulling latest changes..."
+  git pull origin main
+
+  log_info "Installing dependencies..."
+  npm ci --production=false
+
+  log_info "Building server..."
+  npm run build:server
+
+  log_info "Restarting application..."
+  pm2 restart "$APP_NAME"
+
+  log_success "Update completed!"
+
+  echo ""
+  echo "=============================================="
+  echo -e "${GREEN}  Update Complete!${NC}"
+  echo "=============================================="
+  echo ""
+  echo "  Your game is available at:"
+  echo -e "  ${BLUE}https://$DOMAIN${NC}"
+  echo ""
+  echo "  Check status:"
+  echo "    pm2 status"
+  echo "    pm2 logs $APP_NAME"
+  echo ""
+  echo "=============================================="
+
   exit 0
 fi
 
-# Installation directory
-INSTALL_DIR="/home/ec2-user/SnowClash"
-APP_NAME="snowclash"
-
-log_info "Starting deployment..."
+# ============================================
+# FULL INSTALLATION MODE
+# ============================================
 
 # ============================================
 # 1. System Update
