@@ -59,6 +59,7 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
   - `InputSystem.ts` - Keyboard, mouse, touch input handling and charge gauge
   - `PlayerRenderSystem.ts` - Player sprite rendering, animations, and UI elements
   - `SnowballSystem.ts` - Snowball rendering and debris effects
+  - `VirtualControllerSystem.ts` - Mobile virtual joystick and attack button (touch controls)
 - **Scenes**:
   - `MainMenuScene` - Nickname display, room list, create/join room, quick play
   - `LobbyScene` - Team selection, ready system, player list
@@ -139,23 +140,27 @@ All game constants are defined in `src/shared/constants.ts` and shared between s
 ### Movement
 - **Keyboard**: WASD keys or Arrow keys
 - **Mouse**: Click and hold - player moves toward cursor position (360° directional movement)
-- **Touch**: Touch and hold - player moves toward touch position
+- **Touch (Desktop)**: Touch and hold - player moves toward touch position
+- **Touch (Mobile)**: Virtual joystick in bottom-left corner
 
 **Movement Behavior:**
 - Keyboard input takes priority over pointer input
 - Pointer-based: Hold down to continuously move toward cursor/touch position
 - Stops when within 5px of target or when released
 - Uses normalized direction vectors for smooth 360-degree movement
+- Mobile: Virtual joystick provides 360° analog movement control
 
 ### Throw Snowball
 - **Keyboard**: Space (hold to charge, release to throw)
 - **Mouse**: Click and hold to charge, release to fire
-- **Touch**: Touch and hold to charge, release to fire
+- **Touch (Desktop)**: Touch and hold to charge, release to fire
+- **Touch (Mobile)**: Virtual attack button in bottom-right corner
 
 **Throwing Mechanics:**
 - Minimum charge: 0.2s required to throw
 - Full charge: 0.7s+ for charged damage (7 instead of 4)
 - Cooldown: 1s between throws
+- Mobile: Virtual attack button with visual charge gauge
 
 **Important**: Since pointer is used for both movement and attacking, the input is context-dependent:
 - Keep holding to move (if not charging yet)

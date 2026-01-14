@@ -103,6 +103,11 @@ SnowClash/
 │   │   ├── index.html       # HTML 템플릿
 │   │   ├── assets/          # 에셋 생성
 │   │   │   └── PixelCharacter.ts
+│   │   ├── systems/         # 게임 시스템 모듈
+│   │   │   ├── InputSystem.ts
+│   │   │   ├── PlayerRenderSystem.ts
+│   │   │   ├── SnowballSystem.ts
+│   │   │   └── VirtualControllerSystem.ts
 │   │   └── scenes/          # Phaser 씬들
 │   │       ├── MainMenuScene.ts
 │   │       ├── LobbyScene.ts

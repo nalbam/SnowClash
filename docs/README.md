@@ -144,4 +144,4 @@ This documentation is part of the SnowClash project and is licensed under ISC.
 
 ---
 
-**Last Updated**: 2026-01-14
+**Last Updated**: 2026-01-15
