@@ -54,9 +54,11 @@ select_version() {
     # Fallback: ask user to input version or use latest
     log_warn "Could not fetch tags automatically."
     echo ""
-    echo "Enter version to deploy (e.g., v1.0.1, latest):"
+    echo "Enter version to deploy (e.g., 1.0.1, latest):"
     read -p "Version [latest]: " SELECTED_VERSION
     SELECTED_VERSION=${SELECTED_VERSION:-latest}
+    # Remove 'v' prefix if present
+    SELECTED_VERSION="${SELECTED_VERSION#v}"
     return 0
   fi
 
@@ -86,6 +88,9 @@ select_version() {
     fi
     log_info "Selected version: $SELECTED_VERSION"
   fi
+
+  # Remove 'v' prefix if present (Docker tags don't have 'v' prefix)
+  SELECTED_VERSION="${SELECTED_VERSION#v}"
 }
 
 # Check if running as root
@@ -561,9 +566,11 @@ tags=$(curl -s "https://api.github.com/users/nalbam/packages/container/snowclash
 if [ -z "$tags" ]; then
   echo -e "${YELLOW}[WARN]${NC} Could not fetch tags automatically."
   echo ""
-  echo "Enter version to deploy (e.g., v1.0.1, latest):"
+  echo "Enter version to deploy (e.g., 1.0.1, latest):"
   read -p "Version [latest]: " SELECTED_VERSION
   SELECTED_VERSION=${SELECTED_VERSION:-latest}
+  # Remove 'v' prefix if present
+  SELECTED_VERSION="${SELECTED_VERSION#v}"
 else
   echo ""
   echo "Available versions:"
@@ -588,6 +595,8 @@ else
       SELECTED_VERSION="latest"
     fi
   fi
+  # Remove 'v' prefix if present (Docker tags don't have 'v' prefix)
+  SELECTED_VERSION="${SELECTED_VERSION#v}"
 fi
 
 echo -e "${BLUE}[INFO]${NC} Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
