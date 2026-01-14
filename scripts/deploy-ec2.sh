@@ -146,7 +146,12 @@ if [ "$UPDATE_MODE" = true ]; then
   git pull origin main
 
   log_info "Installing dependencies..."
-  npm ci --production=false
+  if [ -f "package-lock.json" ]; then
+    npm ci --production=false
+  else
+    log_warn "package-lock.json not found, using npm install instead"
+    npm install --production=false
+  fi
 
   log_info "Building server..."
   npm run build:server
@@ -253,7 +258,12 @@ fi
 # 8. Install Dependencies and Build
 # ============================================
 log_info "Installing npm dependencies..."
-npm ci --production=false
+if [ -f "package-lock.json" ]; then
+  npm ci --production=false
+else
+  log_warn "package-lock.json not found, using npm install instead"
+  npm install --production=false
+fi
 
 log_info "Building server..."
 npm run build:server
@@ -537,7 +547,12 @@ cat > "$INSTALL_DIR/update.sh" <<EOF
 #!/bin/bash
 cd $INSTALL_DIR
 git pull origin main
-npm ci --production=false
+if [ -f "package-lock.json" ]; then
+  npm ci --production=false
+else
+  echo "Warning: package-lock.json not found, using npm install instead"
+  npm install --production=false
+fi
 npm run build:server
 pm2 restart $APP_NAME
 echo "Update completed!"
