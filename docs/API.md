@@ -2,6 +2,13 @@
 
 SnowClash의 서버-클라이언트 간 메시지 프로토콜과 상태 스키마를 설명합니다.
 
+**관련 문서:**
+- [Architecture Guide](./ARCHITECTURE.md) - 시스템 아키텍처 및 데이터 흐름
+- [Game Mechanics](./GAME_MECHANICS.md) - 게임 로직 및 규칙
+- [Testing Guide](./TESTING.md) - API 테스트 방법
+
+---
+
 ## 목차
 
 1. [개요](#개요)
@@ -664,3 +671,21 @@ class GameClient {
      │←── gameEnded ──────┤ 승자 알림
      │                    │
 ```
+
+
+---
+
+## 관련 문서
+
+- **[Architecture Guide](./ARCHITECTURE.md)** - 시스템 아키텍처 및 데이터 흐름
+- **[Game Mechanics](./GAME_MECHANICS.md)** - 게임 로직 및 규칙 상세
+- **[Testing Guide](./TESTING.md)** - API 테스트 방법
+
+## 네비게이션
+
+- [← 문서 인덱스로 돌아가기](./README.md)
+- [← 메인 README로 돌아가기](../README.md)
+
+---
+
+**마지막 업데이트**: 2026-01-14

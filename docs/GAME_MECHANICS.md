@@ -2,6 +2,13 @@
 
 SnowClash의 게임 규칙, 시스템, 상수값을 설명합니다.
 
+**관련 문서:**
+- [Architecture Guide](./ARCHITECTURE.md) - 시스템 구조 및 구현
+- [API Reference](./API.md) - 메시지 프로토콜 및 상태
+- [Testing Guide](./TESTING.md) - 게임 로직 테스트
+
+---
+
 ## 목차
 
 1. [게임 개요](#게임-개요)
@@ -785,3 +792,22 @@ const BOT_ATTACK_INTERVAL = 1000;  // 2000 → 1000 (1초)
 - 클라이언트의 렌더링 크기(600x600)와 맵 크기(MAP_SIZE)는 동일해야 합니다
 - 맵 크기 변경 시 클라이언트 코드도 함께 수정 필요
 - 속도 변경 시 게임 느낌이 크게 달라질 수 있음
+
+
+---
+
+## 관련 문서
+
+- **[Architecture Guide](./ARCHITECTURE.md)** - 시스템 구조 및 구현
+- **[API Reference](./API.md)** - 메시지 프로토콜 및 상태
+- **[Testing Guide](./TESTING.md)** - 게임 로직 테스트
+- **[Deployment Guide](./DEPLOYMENT.md)** - 프로덕션 배포
+
+## 네비게이션
+
+- [← 문서 인덱스로 돌아가기](./README.md)
+- [← 메인 README로 돌아가기](../README.md)
+
+---
+
+**마지막 업데이트**: 2026-01-14

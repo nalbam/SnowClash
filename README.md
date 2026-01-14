@@ -144,13 +144,20 @@ NODE_ENV=production ALLOWED_ORIGINS=https://game.example.com npm start
 
 ## Documentation
 
-For more detailed information, see the [docs](./docs) folder:
+For more detailed information, see the **[Documentation Index](./docs/README.md)** or browse individual guides:
 
-- [Architecture Guide](./docs/ARCHITECTURE.md) - System architecture and component overview
-- [API Reference](./docs/API.md) - REST API and WebSocket message protocol
-- [Game Mechanics](./docs/GAME_MECHANICS.md) - Game rules, systems, and constants
-- [Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment instructions
-- [Contributing](./docs/CONTRIBUTING.md) - Contribution guidelines
+### Core Documentation
+- **[Architecture Guide](./docs/ARCHITECTURE.md)** - System architecture and component overview
+- **[API Reference](./docs/API.md)** - REST API and WebSocket message protocol
+- **[Game Mechanics](./docs/GAME_MECHANICS.md)** - Game rules, systems, and constants
+
+### Development
+- **[Testing Guide](./docs/TESTING.md)** - Unit tests, coverage, and test execution
+- **[Contributing](./docs/CONTRIBUTING.md)** - Contribution guidelines
+
+### Deployment
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Google OAuth Setup](./docs/GOOGLE_OAUTH_SETUP.md)** - OAuth 2.0 configuration
 
 ## License
 

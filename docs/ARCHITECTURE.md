@@ -2,6 +2,13 @@
 
 SnowClash의 시스템 아키텍처와 각 컴포넌트의 역할을 설명합니다.
 
+**관련 문서:**
+- [API Reference](./API.md) - REST API 및 WebSocket 메시지 프로토콜
+- [Game Mechanics](./GAME_MECHANICS.md) - 게임 로직 및 규칙
+- [Testing Guide](./TESTING.md) - 테스트 실행 및 커버리지
+
+---
+
 ## 목차
 
 1. [시스템 개요](#시스템-개요)
@@ -693,3 +700,22 @@ npm run build  # public/bundle.js에 출력
 - `module`: ES2020
 - `lib`: ES2020, DOM (브라우저 API 지원)
 - `include`: `src/client/**/*`
+
+
+---
+
+## 관련 문서
+
+- **[API Reference](./API.md)** - REST API 및 WebSocket 메시지 프로토콜
+- **[Game Mechanics](./GAME_MECHANICS.md)** - 게임 로직 및 규칙 상세
+- **[Testing Guide](./TESTING.md)** - 테스트 실행 및 커버리지
+- **[Deployment Guide](./DEPLOYMENT.md)** - 프로덕션 배포 가이드
+
+## 네비게이션
+
+- [← 문서 인덱스로 돌아가기](./README.md)
+- [← 메인 README로 돌아가기](../README.md)
+
+---
+
+**마지막 업데이트**: 2026-01-14
