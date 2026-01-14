@@ -136,8 +136,8 @@ Select version [1]:
 ### 방법 1: 빠른 업데이트 (추천, 1-2분)
 
 ```bash
-cd ~/SnowClash/scripts
-./deploy-ec2.sh
+cd ~/SnowClash
+./scripts/deploy-ec2.sh
 # 1 선택 또는 Enter (업데이트 모드)
 # 버전 선택
 ```
@@ -162,8 +162,8 @@ cd ~/SnowClash
 도메인/SSL 변경 시:
 
 ```bash
-cd ~/SnowClash/scripts
-./deploy-ec2.sh
+cd ~/SnowClash
+./scripts/deploy-ec2.sh
 # 2 선택 (전체 재설치)
 # 버전 선택
 ```
