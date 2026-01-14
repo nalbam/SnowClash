@@ -8,6 +8,7 @@ interface PlayerSprite extends Phaser.GameObjects.Sprite {
   lastX?: number;
   lastY?: number;
   isMoving?: boolean;
+  displayEnergy?: number; // For smooth energy bar interpolation
 }
 
 export class GameScene extends Phaser.Scene {
@@ -121,6 +122,22 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number) {
     if (!this.room || !this.keys) return;
 
+    // Check if current player is stunned
+    const currentPlayerState = this.room.state?.players?.get(this.currentPlayer || '');
+    const isStunned = currentPlayerState?.isStunned || false;
+
+    // If stunned, cancel all inputs
+    if (isStunned) {
+      this.isPointerDown = false;
+      if (this.isCharging) {
+        this.isCharging = false;
+        if (this.chargeGauge) {
+          this.chargeGauge.clear();
+        }
+      }
+      return; // Don't process any movement or attacks
+    }
+
     // Handle movement - keyboard takes priority
     let moveX = 0;
     let moveY = 0;
@@ -168,6 +185,33 @@ export class GameScene extends Phaser.Scene {
           // Use normalized direction for smooth 360-degree movement
           moveX = dx / distance;
           moveY = dy / distance;
+        }
+      }
+    }
+
+    // Apply client-side prediction for local player (smooth movement)
+    if ((moveX !== 0 || moveY !== 0) && this.currentPlayer) {
+      const currentPlayer = this.players.get(this.currentPlayer);
+      if (currentPlayer) {
+        const PLAYER_SPEED = 2;
+        const newX = currentPlayer.x + moveX * PLAYER_SPEED;
+        const newY = currentPlayer.y + moveY * PLAYER_SPEED;
+
+        // Update position immediately on client for smooth movement
+        currentPlayer.setPosition(newX, newY);
+
+        // Also update label and energy bar positions
+        const label = this.playerLabels.get(this.currentPlayer);
+        if (label) {
+          label.setPosition(newX, newY - 30);
+        }
+
+        const energyBar = this.energyBars.get(this.currentPlayer);
+        const indicator = this.playerIndicators.get(this.currentPlayer);
+        if (indicator) {
+          indicator.clear();
+          indicator.lineStyle(2, 0xffff00, 1);
+          indicator.strokeCircle(newX, newY, 20);
         }
       }
     }
@@ -313,12 +357,12 @@ export class GameScene extends Phaser.Scene {
     sprite.lastX = player.x;
     sprite.lastY = player.y;
     sprite.isMoving = false;
+    sprite.displayEnergy = player.energy; // Initialize display energy
     this.players.set(sessionId, sprite);
 
     // Create indicator for current player
     const indicator = this.add.graphics();
     this.playerIndicators.set(sessionId, indicator);
-    this.updatePlayerIndicator(sessionId, player);
 
     // Create player label
     const label = this.add.text(player.x, player.y - 30, player.nickname || 'Player', {
@@ -337,26 +381,6 @@ export class GameScene extends Phaser.Scene {
     this.updatePlayer(sessionId, player);
   }
 
-  private updatePlayerIndicator(sessionId: string, player: any) {
-    const indicator = this.playerIndicators.get(sessionId);
-    if (!indicator) return;
-
-    indicator.clear();
-
-    const isCurrentPlayer = sessionId === this.currentPlayer;
-    const isBot = player.isBot;
-
-    if (isCurrentPlayer) {
-      // Yellow ring for current player
-      indicator.lineStyle(2, 0xffff00, 1);
-      indicator.strokeCircle(player.x, player.y, 20);
-    } else if (isBot) {
-      // Gray ring for bots
-      indicator.lineStyle(1, 0x888888, 0.5);
-      indicator.strokeCircle(player.x, player.y, 18);
-    }
-  }
-
   private updatePlayer(sessionId: string, player: any) {
     const sprite = this.players.get(sessionId);
     if (!sprite) return;
@@ -366,8 +390,28 @@ export class GameScene extends Phaser.Scene {
     // Check if player is moving
     const isMoving = sprite.lastX !== player.x || sprite.lastY !== player.y;
 
-    // Update position
-    sprite.setPosition(player.x, player.y);
+    // For local player, only use server position for correction (skip immediate update)
+    // Client-side prediction handles local player movement
+    const isLocalPlayer = sessionId === this.currentPlayer;
+
+    if (!isLocalPlayer) {
+      // For remote players, smoothly interpolate to server position
+      const lerpSpeed = 0.3; // Adjust between 0-1 for smoother/faster interpolation
+      sprite.x += (player.x - sprite.x) * lerpSpeed;
+      sprite.y += (player.y - sprite.y) * lerpSpeed;
+    } else {
+      // For local player, apply smooth correction towards server position
+      const correctionSpeed = 0.2; // Adjust between 0-1 for smoother/faster correction
+      const dx = player.x - sprite.x;
+      const dy = player.y - sprite.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Only correct if there's significant deviation (more than 5 pixels)
+      if (distance > 5) {
+        sprite.x += dx * correctionSpeed;
+        sprite.y += dy * correctionSpeed;
+      }
+    }
 
     // Determine animation state
     if (player.isStunned) {
@@ -391,37 +435,62 @@ export class GameScene extends Phaser.Scene {
       sprite.anims.stop();
     }
 
-    // Update last position
+    // Update last position (use server position for tracking movement state)
     sprite.lastX = player.x;
     sprite.lastY = player.y;
 
-    // Update indicator
-    this.updatePlayerIndicator(sessionId, player);
+    // Update indicator (use sprite's interpolated position)
+    const indicator = this.playerIndicators.get(sessionId);
+    if (indicator) {
+      indicator.clear();
 
-    // Update label position
-    const label = this.playerLabels.get(sessionId);
-    if (label) {
-      label.setPosition(player.x, player.y - 30);
+      const isCurrentPlayer = sessionId === this.currentPlayer;
+      const isBot = player.isBot;
+
+      if (isCurrentPlayer) {
+        // Yellow ring for current player
+        indicator.lineStyle(2, 0xffff00, 1);
+        indicator.strokeCircle(sprite.x, sprite.y, 20);
+      } else if (isBot) {
+        // Gray ring for bots
+        indicator.lineStyle(1, 0x888888, 0.5);
+        indicator.strokeCircle(sprite.x, sprite.y, 18);
+      }
     }
 
-    // Update energy bar
+    // Update label position (use sprite's interpolated position)
+    const label = this.playerLabels.get(sessionId);
+    if (label) {
+      label.setPosition(sprite.x, sprite.y - 30);
+    }
+
+    // Update energy bar (use sprite's interpolated position)
     const energyBar = this.energyBars.get(sessionId);
     if (energyBar) {
       energyBar.clear();
 
+      // Initialize displayEnergy if not set
+      const currentEnergy = sprite.displayEnergy ?? player.energy;
+
+      // Smoothly interpolate energy value
+      const targetEnergy = player.isStunned ? 0 : player.energy;
+      const energyLerpSpeed = 0.15; // Adjust for smoother/faster energy bar changes
+      const currentDisplayEnergy = currentEnergy + (targetEnergy - currentEnergy) * energyLerpSpeed;
+      sprite.displayEnergy = currentDisplayEnergy;
+
       const barWidth = 30;
       const barHeight = 4;
-      const energyPercent = player.isStunned ? 0 : Math.max(0, player.energy / 10);
+      const energyPercent = Math.max(0, currentDisplayEnergy / 10);
 
       // Background
       energyBar.fillStyle(0x000000, 0.5);
-      energyBar.fillRect(player.x - barWidth / 2, player.y - 40, barWidth, barHeight);
+      energyBar.fillRect(sprite.x - barWidth / 2, sprite.y - 40, barWidth, barHeight);
 
       // Energy fill
       if (energyPercent > 0) {
         const energyColor = energyPercent > 0.5 ? 0x00ff00 : energyPercent > 0.25 ? 0xffff00 : 0xff0000;
         energyBar.fillStyle(energyColor, 1);
-        energyBar.fillRect(player.x - barWidth / 2, player.y - 40, barWidth * energyPercent, barHeight);
+        energyBar.fillRect(sprite.x - barWidth / 2, sprite.y - 40, barWidth * energyPercent, barHeight);
       }
     }
   }
@@ -565,6 +634,10 @@ export class GameScene extends Phaser.Scene {
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
     // Only handle left clicks (mouse button 0) or primary touch
     if (pointer.button !== 0 && pointer.button !== undefined) return;
+
+    // Check if player is stunned
+    const currentPlayerState = this.room?.state?.players?.get(this.currentPlayer || '');
+    if (currentPlayerState?.isStunned) return;
 
     // Ignore clicks outside the map
     if (pointer.x < 0 || pointer.x > MAP_SIZE || pointer.y < 0 || pointer.y > MAP_SIZE) return;
