@@ -83,17 +83,41 @@ Located in `src/client/scenes/GameScene.ts`:
 - **Stunned Players**: Can still be hit by snowballs (act as dummy/shield)
 - **Snowball Hit Detection**: Player radius (15px) + snowball radius (normal: 5px, charged: 9px)
 - **Snowball Direction**: Red team shoots toward bottom-left (−x, +y), Blue team shoots toward top-right (+x, −y)
-- **Game End**: Snowballs continue moving for 3 seconds after game ends
+- **Game End**:
+  - Snowballs continue moving but deal no damage after game ends
+  - Victory celebration: Winning team revives, can move freely, and performs cheer animation
+  - Energy bars hidden
+  - "Return to Menu" button displayed (manual return, no auto-redirect)
+  - Light overlay (20% opacity) to indicate game end
 - **Phases**: `lobby` → `playing` → `ended`
 - **Host authority**: First human player to join becomes host and can start the game
 
 ## Controls
 
-- **Movement**: WASD keys or Arrow keys
-- **Throw Snowball**: Space (hold to charge, release to throw)
-  - Minimum charge: 0.2s required to throw
-  - Full charge: 0.7s+ for charged damage (7 instead of 4)
-  - Cooldown: 1s between throws
+### Movement
+- **Keyboard**: WASD keys or Arrow keys
+- **Mouse**: Click and hold - player moves toward cursor position (360° directional movement)
+- **Touch**: Touch and hold - player moves toward touch position
+
+**Movement Behavior:**
+- Keyboard input takes priority over pointer input
+- Pointer-based: Hold down to continuously move toward cursor/touch position
+- Stops when within 5px of target or when released
+- Uses normalized direction vectors for smooth 360-degree movement
+
+### Throw Snowball
+- **Keyboard**: Space (hold to charge, release to throw)
+- **Mouse**: Click and hold to charge, release to fire
+- **Touch**: Touch and hold to charge, release to fire
+
+**Throwing Mechanics:**
+- Minimum charge: 0.2s required to throw
+- Full charge: 0.7s+ for charged damage (7 instead of 4)
+- Cooldown: 1s between throws
+
+**Important**: Since pointer is used for both movement and attacking, the input is context-dependent:
+- Keep holding to move (if not charging yet)
+- Hold long enough and it becomes a charge attack instead of movement
 
 ## Build Configuration
 

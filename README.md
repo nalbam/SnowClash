@@ -116,11 +116,24 @@ NODE_ENV=production ALLOWED_ORIGINS=https://game.example.com npm start
 4. **Winning**:
    - Stun all opponents by reducing their energy to 0 or below
    - Last team standing wins!
+   - **Victory Celebration**: Winning team revives, can move freely, and performs cheer animation
+   - Click "Return to Menu" button to go back
 
 ## Controls
 
-- **Movement**: WASD or Arrow keys
-- **Throw Snowball**: Space (tap for normal, hold to charge)
+### Desktop
+- **Movement**:
+  - WASD or Arrow keys
+  - OR Click and hold to move toward cursor
+- **Throw Snowball**:
+  - Space (hold to charge, release to fire)
+  - OR Click and hold to charge, release to fire
+
+### Mobile/Touch
+- **Movement**: Touch and hold to move toward touch position
+- **Throw Snowball**: Touch and hold to charge, release to fire
+
+**Note**: When using mouse/touch, keep holding to move continuously toward the cursor/touch position. Release to stop or switch to attacking.
 
 ## Technology Stack
 
