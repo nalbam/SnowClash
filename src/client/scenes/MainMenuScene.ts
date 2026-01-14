@@ -51,9 +51,17 @@ export class MainMenuScene extends Phaser.Scene {
   private async fetchServerVersion() {
     try {
       const response = await fetch(`${config.apiUrl}/api/version`);
+
+      if (!response.ok) {
+        console.warn(`Failed to fetch version: ${response.status} ${response.statusText}`);
+        this.serverVersion = 'unknown';
+        return;
+      }
+
       const data = await response.json() as { version: string };
       this.serverVersion = data.version;
     } catch (error) {
+      console.warn('Failed to fetch version:', error);
       this.serverVersion = 'unknown';
     }
   }
@@ -200,8 +208,25 @@ export class MainMenuScene extends Phaser.Scene {
   private async refreshRoomList() {
     try {
       const response = await fetch(`${config.apiUrl}/api/rooms`);
-      this.rooms = await response.json() as RoomInfo[];
-      this.updateRoomListUI();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          console.warn('Rate limited, will retry later');
+        } else {
+          console.error(`Failed to fetch rooms: ${response.status} ${response.statusText}`);
+        }
+        return;
+      }
+
+      const data = await response.json();
+
+      // Validate that response is an array
+      if (Array.isArray(data)) {
+        this.rooms = data as RoomInfo[];
+        this.updateRoomListUI();
+      } else {
+        console.error('Invalid room list response:', data);
+      }
     } catch (error) {
       console.error('Failed to fetch rooms:', error);
     }
