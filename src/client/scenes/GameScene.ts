@@ -39,6 +39,12 @@ export class GameScene extends Phaser.Scene {
   private fadingSnowballs: Set<string> = new Set(); // 페이딩 중인 눈덩이 추적
   private snowballPositions: Map<string, { x: number; y: number; team: string; damage: number }> = new Map();
 
+  // Pointer/touch input state
+  private isPointerDown: boolean = false;
+  private pointerDownTime: number = 0;
+  private currentPointerX: number = 0;
+  private currentPointerY: number = 0;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -93,6 +99,11 @@ export class GameScene extends Phaser.Scene {
       };
     }
 
+    // Setup pointer/touch input (works for both mouse and touch)
+    this.input.on('pointerdown', this.handlePointerDown, this);
+    this.input.on('pointerup', this.handlePointerUp, this);
+    this.input.on('pointermove', this.handlePointerMove, this);
+
     // Setup room state listeners
     this.setupRoomHandlers();
 
@@ -110,44 +121,68 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number) {
     if (!this.room || !this.keys) return;
 
-    // Handle movement (WASD or Arrow keys)
+    // Handle movement - keyboard takes priority
     let moveX = 0;
     let moveY = 0;
+    let isKeyboardMoving = false;
 
-    if (this.keys.up.isDown || this.keys.arrowUp.isDown) moveY = -1;
-    if (this.keys.down.isDown || this.keys.arrowDown.isDown) moveY = 1;
-    if (this.keys.left.isDown || this.keys.arrowLeft.isDown) moveX = -1;
-    if (this.keys.right.isDown || this.keys.arrowRight.isDown) moveX = 1;
+    // Check keyboard input
+    if (this.keys.up.isDown || this.keys.arrowUp.isDown) {
+      moveY = -1;
+      isKeyboardMoving = true;
+    }
+    if (this.keys.down.isDown || this.keys.arrowDown.isDown) {
+      moveY = 1;
+      isKeyboardMoving = true;
+    }
+    if (this.keys.left.isDown || this.keys.arrowLeft.isDown) {
+      moveX = -1;
+      isKeyboardMoving = true;
+    }
+    if (this.keys.right.isDown || this.keys.arrowRight.isDown) {
+      moveX = 1;
+      isKeyboardMoving = true;
+    }
 
+    // If keyboard is being used, cancel pointer input
+    if (isKeyboardMoving) {
+      this.isPointerDown = false;
+      if (this.isCharging) {
+        this.isCharging = false;
+        if (this.chargeGauge) {
+          this.chargeGauge.clear();
+        }
+      }
+    }
+    // Otherwise, check for pointer-based movement
+    else if (this.isPointerDown) {
+      const currentPlayer = this.players.get(this.currentPlayer || '');
+      if (currentPlayer) {
+        // Calculate direction from player to cursor
+        const dx = this.currentPointerX - currentPlayer.x;
+        const dy = this.currentPointerY - currentPlayer.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 5) {
+          // Only move if cursor is not too close to player
+          // Calculate normalized direction
+          moveX = dx / distance;
+          moveY = dy / distance;
+
+          // Clamp to -1, 0, 1 for consistent behavior with keyboard
+          moveX = Math.sign(moveX);
+          moveY = Math.sign(moveY);
+        }
+      }
+    }
+
+    // Send movement to server
     if (moveX !== 0 || moveY !== 0) {
       this.room.send('move', { x: moveX, y: moveY });
     }
 
-    // Handle snowball throwing with charge
-    const canThrow = time - this.lastThrowTime >= this.THROW_COOLDOWN;
-
-    if (this.keys.space.isDown && canThrow) {
-      if (!this.isCharging) {
-        this.isCharging = true;
-        this.chargeStartTime = time;
-      }
-      this.updateChargeGauge(time);
-    } else if (this.isCharging && !this.keys.space.isDown) {
-      // Release snowball
-      const chargeTime = time - this.chargeStartTime;
-
-      // Only throw if minimum charge time met
-      if (chargeTime >= this.MIN_CHARGE_TIME) {
-        const chargeLevel = Math.min(chargeTime / 1000, 1); // Max 1 second charge
-        this.room.send('throwSnowball', { chargeLevel });
-        this.lastThrowTime = time;
-      }
-
-      this.isCharging = false;
-      if (this.chargeGauge) {
-        this.chargeGauge.clear();
-      }
-    }
+    // Handle snowball charging/throwing
+    this.handleSnowballInput(time);
   }
 
   private drawMap() {
@@ -531,6 +566,67 @@ export class GameScene extends Phaser.Scene {
     this.chargeGauge.strokeRect(gaugeX, gaugeY, gaugeWidth, gaugeHeight);
   }
 
+  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+    // Only handle left clicks (mouse button 0) or primary touch
+    if (pointer.button !== 0 && pointer.button !== undefined) return;
+
+    // Ignore clicks outside the map
+    if (pointer.x < 0 || pointer.x > MAP_SIZE || pointer.y < 0 || pointer.y > MAP_SIZE) return;
+
+    // Record pointer down state and position
+    this.isPointerDown = true;
+    this.pointerDownTime = this.time.now;
+    this.currentPointerX = pointer.x;
+    this.currentPointerY = pointer.y;
+  }
+
+  private handlePointerUp(pointer: Phaser.Input.Pointer) {
+    // Release pointer - snowball will be fired by handleSnowballInput
+    this.isPointerDown = false;
+  }
+
+  private handlePointerMove(pointer: Phaser.Input.Pointer) {
+    // Update cursor position while pointer is down
+    if (this.isPointerDown) {
+      this.currentPointerX = pointer.x;
+      this.currentPointerY = pointer.y;
+    }
+  }
+
+  private handleSnowballInput(time: number) {
+    if (!this.room) return;
+
+    const canThrow = time - this.lastThrowTime >= this.THROW_COOLDOWN;
+
+    // Check if charging should start
+    const shouldCharge = this.keys?.space.isDown || this.isPointerDown;
+
+    if (shouldCharge && canThrow) {
+      if (!this.isCharging) {
+        this.isCharging = true;
+        this.chargeStartTime = time;
+      }
+      this.updateChargeGauge(time);
+    }
+    // Check if should release
+    else if (this.isCharging && !shouldCharge) {
+      // Release snowball
+      const chargeTime = time - this.chargeStartTime;
+
+      // Only throw if minimum charge time met
+      if (chargeTime >= this.MIN_CHARGE_TIME) {
+        const chargeLevel = Math.min(chargeTime / 1000, 1);
+        this.room.send('throwSnowball', { chargeLevel });
+        this.lastThrowTime = time;
+      }
+
+      this.isCharging = false;
+      if (this.chargeGauge) {
+        this.chargeGauge.clear();
+      }
+    }
+  }
+
   private showGameOver(winner: string) {
     const centerX = MAP_SIZE / 2;
     const centerY = MAP_SIZE / 2;
@@ -570,5 +666,12 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(5000, () => {
       this.scene.start('MainMenuScene');
     });
+  }
+
+  shutdown() {
+    // Remove pointer listeners
+    this.input.off('pointerdown', this.handlePointerDown, this);
+    this.input.off('pointerup', this.handlePointerUp, this);
+    this.input.off('pointermove', this.handlePointerMove, this);
   }
 }
