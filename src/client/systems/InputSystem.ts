@@ -13,6 +13,7 @@ export interface InputConfig {
   throwCooldown: number;   // Cooldown between throws (ms)
   minChargeTime: number;   // Minimum charge time to throw (ms)
   mapSize: number;         // Map size for bounds checking
+  isMobile?: boolean;      // Whether running on mobile device
 }
 
 /**
@@ -55,6 +56,16 @@ export class InputSystem {
   private currentPointerX: number = 0;
   private currentPointerY: number = 0;
 
+  // Virtual controller state (for mobile)
+  private virtualInput = {
+    moveX: 0,
+    moveY: 0,
+    isMoving: false,
+    isCharging: false,
+    chargeStartTime: 0,
+    shouldThrow: false
+  };
+
   constructor(scene: Phaser.Scene, config: InputConfig) {
     this.scene = scene;
     this.config = config;
@@ -82,6 +93,41 @@ export class InputSystem {
    * Get current input state
    */
   public getInput(time: number, playerX?: number, playerY?: number): InputState {
+    // Check virtual controller input first (mobile priority)
+    if (this.virtualInput.isMoving || this.virtualInput.isCharging || this.virtualInput.shouldThrow) {
+      const shouldThrow = this.virtualInput.shouldThrow;
+      let chargeLevel = 0;
+
+      if (shouldThrow) {
+        const chargeTime = time - this.virtualInput.chargeStartTime;
+        if (chargeTime >= this.config.minChargeTime) {
+          chargeLevel = Math.min(chargeTime / 1000, 1);
+          this.lastThrowTime = time;
+        }
+        // Reset shouldThrow after reading
+        this.virtualInput.shouldThrow = false;
+
+        // Only return throw if enough charge time
+        if (chargeTime < this.config.minChargeTime) {
+          return {
+            moveX: this.virtualInput.moveX,
+            moveY: this.virtualInput.moveY,
+            isMoving: this.virtualInput.isMoving,
+            shouldThrow: false,
+            chargeLevel: 0
+          };
+        }
+      }
+
+      return {
+        moveX: this.virtualInput.moveX,
+        moveY: this.virtualInput.moveY,
+        isMoving: this.virtualInput.isMoving,
+        shouldThrow: shouldThrow && chargeLevel > 0,
+        chargeLevel
+      };
+    }
+
     // Get keyboard input first (priority)
     const keyboardInput = this.getKeyboardInput();
 
@@ -96,16 +142,16 @@ export class InputSystem {
       moveY = keyboardInput.moveY;
       isMoving = moveX !== 0 || moveY !== 0;
     }
-    // Otherwise, check for pointer-based movement
-    else if (this.isPointerDown && playerX !== undefined && playerY !== undefined) {
+    // Otherwise, check for pointer-based movement (only on non-mobile or when not using virtual controller)
+    else if (!this.config.isMobile && this.isPointerDown && playerX !== undefined && playerY !== undefined) {
       const pointerMovement = this.getPointerMovement(playerX, playerY);
       moveX = pointerMovement.moveX;
       moveY = pointerMovement.moveY;
       isMoving = moveX !== 0 || moveY !== 0;
     }
 
-    // Process snowball input (charging/throwing)
-    const snowballInput = this.processSnowballInput(time);
+    // Process snowball input (charging/throwing) - only for non-mobile
+    const snowballInput = this.config.isMobile ? { shouldThrow: false, chargeLevel: 0 } : this.processSnowballInput(time);
 
     return {
       moveX,
@@ -127,6 +173,29 @@ export class InputSystem {
         this.chargeGauge.clear();
       }
     }
+    // Reset virtual input
+    this.virtualInput = {
+      moveX: 0,
+      moveY: 0,
+      isMoving: false,
+      isCharging: false,
+      chargeStartTime: 0,
+      shouldThrow: false
+    };
+  }
+
+  /**
+   * Set virtual controller input (called from VirtualControllerSystem)
+   */
+  public setVirtualInput(input: {
+    moveX: number;
+    moveY: number;
+    isMoving: boolean;
+    isCharging: boolean;
+    chargeStartTime: number;
+    shouldThrow: boolean;
+  }): void {
+    this.virtualInput = input;
   }
 
   /**

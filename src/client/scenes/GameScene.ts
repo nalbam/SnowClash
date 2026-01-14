@@ -4,6 +4,7 @@ import { generateCharacterTextures, createCharacterAnimations } from '../assets/
 import { SnowballSystem } from '../systems/SnowballSystem';
 import { InputSystem } from '../systems/InputSystem';
 import { PlayerRenderSystem } from '../systems/PlayerRenderSystem';
+import { VirtualControllerSystem } from '../systems/VirtualControllerSystem';
 import { MAP_SIZE, PLAYER_SPEED, THROW_COOLDOWN, MIN_CHARGE_TIME } from '../../shared/constants';
 
 export class GameScene extends Phaser.Scene {
@@ -11,6 +12,10 @@ export class GameScene extends Phaser.Scene {
   private snowballSystem?: SnowballSystem;
   private inputSystem?: InputSystem;
   private playerRenderSystem?: PlayerRenderSystem;
+  private virtualController?: VirtualControllerSystem;
+
+  // Mobile flag
+  private isMobile: boolean = false;
 
   private room?: Room;
   private currentPlayer?: string;
@@ -34,14 +39,24 @@ export class GameScene extends Phaser.Scene {
     this.gameEnded = false;
     this.winner = '';
 
+    // Get mobile flag from registry
+    this.isMobile = this.registry.get('isMobile') || false;
+    const controllerHeight = this.registry.get('controllerHeight') || 200;
+
     // Initialize systems
     this.snowballSystem = new SnowballSystem(this);
     this.inputSystem = new InputSystem(this, {
       throwCooldown: THROW_COOLDOWN,
       minChargeTime: MIN_CHARGE_TIME,
-      mapSize: MAP_SIZE
+      mapSize: MAP_SIZE,
+      isMobile: this.isMobile
     });
     this.playerRenderSystem = new PlayerRenderSystem(this);
+
+    // Initialize virtual controller for mobile
+    if (this.isMobile) {
+      this.virtualController = new VirtualControllerSystem(this, MAP_SIZE, controllerHeight);
+    }
   }
 
   create() {
@@ -57,6 +72,11 @@ export class GameScene extends Phaser.Scene {
     // Initialize input system
     if (this.inputSystem) {
       this.inputSystem.init();
+    }
+
+    // Initialize virtual controller for mobile
+    if (this.virtualController) {
+      this.virtualController.init();
     }
 
     // Setup room state listeners
@@ -80,7 +100,16 @@ export class GameScene extends Phaser.Scene {
     // Check if game has ended or not in playing phase
     if ((this.gameEnded || this.room.state?.phase !== 'playing' || currentPlayerState?.isStunned) && !isWinningTeam) {
       this.inputSystem.cancelInput();
+      if (this.virtualController) {
+        this.virtualController.cancelInput();
+      }
       return;
+    }
+
+    // Update virtual controller input if on mobile
+    if (this.virtualController && this.inputSystem) {
+      const virtualInput = this.virtualController.getInput(time);
+      this.inputSystem.setVirtualInput(virtualInput);
     }
 
     // Get current player position
@@ -378,6 +407,9 @@ export class GameScene extends Phaser.Scene {
     // Cleanup systems
     if (this.inputSystem) {
       this.inputSystem.shutdown();
+    }
+    if (this.virtualController) {
+      this.virtualController.shutdown();
     }
     if (this.playerRenderSystem) {
       this.playerRenderSystem.clear();
