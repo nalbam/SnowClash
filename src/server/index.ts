@@ -52,9 +52,11 @@ app.use(cors({
 }));
 
 // Security: Rate limiting
+// Development: More relaxed limits to support auto-refresh (12 req/min + initial loads)
+// Production: Stricter limits for security
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
+  max: process.env.NODE_ENV === 'production' ? 100 : 300, // Dev: 300, Prod: 100 requests per window
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { MAP_SIZE } from '../../shared/constants';
 
 export interface PlayerSpriteData {
   sprite: Phaser.GameObjects.Sprite;
@@ -34,13 +35,32 @@ export interface GameContext {
  * - Manage animation states (idle, walk, stunned, cheer)
  * - Render UI elements (labels, energy bars, indicators)
  * - Handle smooth energy bar transitions
+ * - Convert server coordinates to view coordinates (for red team rotation)
  */
 export class PlayerRenderSystem {
   private scene: Phaser.Scene;
   private players: Map<string, PlayerSpriteData> = new Map();
+  private myTeam?: string;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+  }
+
+  /**
+   * Set the current player's team (for coordinate transformation)
+   */
+  public setMyTeam(team: string): void {
+    this.myTeam = team;
+  }
+
+  /**
+   * Convert server coordinates to view coordinates
+   */
+  private toViewCoords(x: number, y: number): { x: number; y: number } {
+    if (this.myTeam === 'red') {
+      return { x: MAP_SIZE - x, y: MAP_SIZE - y };
+    }
+    return { x, y };
   }
 
   /**
@@ -52,15 +72,18 @@ export class PlayerRenderSystem {
     const team = state.team || 'red';
     const textureKey = `character_${team}_idle`;
 
+    // Convert server coordinates to view coordinates
+    const viewPos = this.toViewCoords(state.x, state.y);
+
     // Create sprite for player
-    const sprite = this.scene.add.sprite(state.x, state.y, textureKey) as Phaser.GameObjects.Sprite;
+    const sprite = this.scene.add.sprite(viewPos.x, viewPos.y, textureKey) as Phaser.GameObjects.Sprite;
     sprite.setScale(1);
 
     // Create indicator
     const indicator = this.scene.add.graphics();
 
     // Create player label
-    const label = this.scene.add.text(state.x, state.y - 30, state.nickname || 'Player', {
+    const label = this.scene.add.text(viewPos.x, viewPos.y - 30, state.nickname || 'Player', {
       fontSize: '10px',
       color: '#000000',
       backgroundColor: '#ffffffcc',
@@ -70,7 +93,7 @@ export class PlayerRenderSystem {
     // Create energy bar
     const energyBar = this.scene.add.graphics();
 
-    // Store player data
+    // Store player data (store server coordinates for tracking movement)
     this.players.set(sessionId, {
       sprite,
       indicator,
@@ -189,16 +212,19 @@ export class PlayerRenderSystem {
   private updateSpritePosition(playerData: PlayerSpriteData, state: PlayerState, isLocalPlayer: boolean): void {
     const { sprite } = playerData;
 
+    // Convert server coordinates to view coordinates
+    const viewPos = this.toViewCoords(state.x, state.y);
+
     if (!isLocalPlayer) {
       // For remote players, smoothly interpolate to server position
       const lerpSpeed = 0.3;
-      sprite.x += (state.x - sprite.x) * lerpSpeed;
-      sprite.y += (state.y - sprite.y) * lerpSpeed;
+      sprite.x += (viewPos.x - sprite.x) * lerpSpeed;
+      sprite.y += (viewPos.y - sprite.y) * lerpSpeed;
     } else {
       // For local player, apply smooth correction towards server position
       const correctionSpeed = 0.2;
-      const dx = state.x - sprite.x;
-      const dy = state.y - sprite.y;
+      const dx = viewPos.x - sprite.x;
+      const dy = viewPos.y - sprite.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       // Only correct if there's significant deviation (more than 5 pixels)

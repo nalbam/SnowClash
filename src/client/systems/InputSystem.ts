@@ -26,10 +26,12 @@ export interface InputConfig {
  * - Track charging state and cooldowns
  * - Render charge gauge UI
  * - Return normalized input state
+ * - Convert view coordinates to server coordinates (for red team rotation)
  */
 export class InputSystem {
   private scene: Phaser.Scene;
   private config: InputConfig;
+  private myTeam?: string;
 
   // Keyboard keys
   private keys?: {
@@ -72,6 +74,24 @@ export class InputSystem {
   }
 
   /**
+   * Set the current player's team (for coordinate transformation)
+   */
+  public setMyTeam(team: string): void {
+    this.myTeam = team;
+  }
+
+  /**
+   * Convert view coordinates to server coordinates
+   * Used for pointer input (clicks, touches)
+   */
+  private toServerCoords(x: number, y: number): { x: number; y: number } {
+    if (this.myTeam === 'red') {
+      return { x: MAP_SIZE - x, y: MAP_SIZE - y };
+    }
+    return { x, y };
+  }
+
+  /**
    * Initialize input system - setup keyboard and pointer listeners
    */
   public init(): void {
@@ -109,9 +129,13 @@ export class InputSystem {
 
         // Only return throw if enough charge time
         if (chargeTime < this.config.minChargeTime) {
+          // Apply direction reversal for red team
+          const moveX = this.myTeam === 'red' ? -this.virtualInput.moveX : this.virtualInput.moveX;
+          const moveY = this.myTeam === 'red' ? -this.virtualInput.moveY : this.virtualInput.moveY;
+
           return {
-            moveX: this.virtualInput.moveX,
-            moveY: this.virtualInput.moveY,
+            moveX,
+            moveY,
             isMoving: this.virtualInput.isMoving,
             shouldThrow: false,
             chargeLevel: 0
@@ -119,9 +143,13 @@ export class InputSystem {
         }
       }
 
+      // Apply direction reversal for red team
+      const moveX = this.myTeam === 'red' ? -this.virtualInput.moveX : this.virtualInput.moveX;
+      const moveY = this.myTeam === 'red' ? -this.virtualInput.moveY : this.virtualInput.moveY;
+
       return {
-        moveX: this.virtualInput.moveX,
-        moveY: this.virtualInput.moveY,
+        moveX,
+        moveY,
         isMoving: this.virtualInput.isMoving,
         shouldThrow: shouldThrow && chargeLevel > 0,
         chargeLevel
@@ -138,13 +166,15 @@ export class InputSystem {
     // If keyboard is being used, cancel pointer input
     if (keyboardInput.isKeyboard) {
       this.cancelPointerInput();
-      moveX = keyboardInput.moveX;
-      moveY = keyboardInput.moveY;
+      // Apply direction reversal for red team
+      moveX = this.myTeam === 'red' ? -keyboardInput.moveX : keyboardInput.moveX;
+      moveY = this.myTeam === 'red' ? -keyboardInput.moveY : keyboardInput.moveY;
       isMoving = moveX !== 0 || moveY !== 0;
     }
     // Otherwise, check for pointer-based movement (only on non-mobile or when not using virtual controller)
     else if (!this.config.isMobile && this.isPointerDown && playerX !== undefined && playerY !== undefined) {
       const pointerMovement = this.getPointerMovement(playerX, playerY);
+      // Pointer movement is already in server coordinates, no need to reverse
       moveX = pointerMovement.moveX;
       moveY = pointerMovement.moveY;
       isMoving = moveX !== 0 || moveY !== 0;
@@ -248,11 +278,14 @@ export class InputSystem {
     // Ignore clicks outside the map
     if (pointer.x < 0 || pointer.x > this.config.mapSize || pointer.y < 0 || pointer.y > this.config.mapSize) return;
 
-    // Record pointer down state and position
+    // Convert view coordinates to server coordinates and store
+    const serverPos = this.toServerCoords(pointer.x, pointer.y);
+
+    // Record pointer down state and position (in server coordinates)
     this.isPointerDown = true;
     this.pointerDownTime = this.scene.time.now;
-    this.currentPointerX = pointer.x;
-    this.currentPointerY = pointer.y;
+    this.currentPointerX = serverPos.x;
+    this.currentPointerY = serverPos.y;
   }
 
   /**
@@ -269,8 +302,10 @@ export class InputSystem {
   private handlePointerMove(pointer: Phaser.Input.Pointer): void {
     // Update cursor position while pointer is down
     if (this.isPointerDown) {
-      this.currentPointerX = pointer.x;
-      this.currentPointerY = pointer.y;
+      // Convert view coordinates to server coordinates
+      const serverPos = this.toServerCoords(pointer.x, pointer.y);
+      this.currentPointerX = serverPos.x;
+      this.currentPointerY = serverPos.y;
     }
   }
 
@@ -306,11 +341,16 @@ export class InputSystem {
 
   /**
    * Get pointer-based movement
+   * playerX, playerY are in view coordinates
+   * currentPointerX, currentPointerY are in server coordinates
    */
   private getPointerMovement(playerX: number, playerY: number): { moveX: number; moveY: number } {
-    // Calculate direction from player to cursor
-    const dx = this.currentPointerX - playerX;
-    const dy = this.currentPointerY - playerY;
+    // Convert player position (view coords) to server coords for comparison
+    const serverPlayerPos = this.toServerCoords(playerX, playerY);
+
+    // Calculate direction from player to cursor (both in server coordinates)
+    const dx = this.currentPointerX - serverPlayerPos.x;
+    const dy = this.currentPointerY - serverPlayerPos.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     if (distance > 5) {

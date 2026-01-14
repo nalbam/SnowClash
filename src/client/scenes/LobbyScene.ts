@@ -17,9 +17,32 @@ export class LobbyScene extends Phaser.Scene {
   private redZone?: Phaser.GameObjects.Graphics;
   private blueZone?: Phaser.GameObjects.Graphics;
   private playerSprites: Map<string, Phaser.GameObjects.Container> = new Map();
+  private myTeam?: string;
+  private teamLabels?: { red: Phaser.GameObjects.Text; blue: Phaser.GameObjects.Text };
 
   constructor() {
     super({ key: 'LobbyScene' });
+  }
+
+  /**
+   * Convert server coordinates to view coordinates
+   * Red team sees the map rotated 180 degrees
+   */
+  private toViewCoords(x: number, y: number): { x: number; y: number } {
+    if (this.myTeam === 'red') {
+      return { x: MAP_SIZE - x, y: MAP_SIZE - y };
+    }
+    return { x, y };
+  }
+
+  /**
+   * Convert view coordinates to server coordinates
+   */
+  private toServerCoords(x: number, y: number): { x: number; y: number } {
+    if (this.myTeam === 'red') {
+      return { x: MAP_SIZE - x, y: MAP_SIZE - y };
+    }
+    return { x, y };
   }
 
   init(data: any) {
@@ -27,6 +50,8 @@ export class LobbyScene extends Phaser.Scene {
     this.nickname = data.nickname || 'Player';
     this.listenersSetup = false;
     this.playerSprites.clear();
+    this.myTeam = undefined;
+    this.teamLabels = undefined;
   }
 
   create() {
@@ -67,21 +92,43 @@ export class LobbyScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#000000'));
     backBtn.on('pointerout', () => backBtn.setColor('#666666'));
 
-    // Draw team zones (diagonal split like game map)
-    this.drawTeamZones();
+    // Initialize graphics objects (but don't draw zones yet - wait for team info)
+    this.redZone = this.add.graphics();
+    this.blueZone = this.add.graphics();
 
-    // Team labels (positioned in their zones)
-    this.add.text(MAP_SIZE * 0.8, MAP_SIZE * 0.25, 'RED', {
+    // Draw diagonal line only
+    const topY = PLAYABLE_AREA_TOP;
+    const bottomY = PLAYABLE_AREA_BOTTOM;
+    const height = PLAYABLE_AREA_HEIGHT;
+
+    const line = this.add.graphics();
+    line.lineStyle(2, 0xffffff, 0.5);
+    line.beginPath();
+    line.moveTo(0, topY);
+    line.lineTo(MAP_SIZE, bottomY);
+    line.strokePath();
+
+    // Make entire playable area clickable for team selection
+    const playableArea = this.add.zone(MAP_SIZE / 2, topY + height / 2, MAP_SIZE, height);
+    playableArea.setInteractive({ useHandCursor: true });
+    playableArea.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.handleTeamClick(pointer.x, pointer.y);
+    });
+
+    // Team labels (positioned in their zones) - will be updated by updateTeamUI()
+    const redLabel = this.add.text(MAP_SIZE * 0.8, MAP_SIZE * 0.25, '', {
       fontSize: '28px',
       color: '#ff0000',
       fontStyle: 'bold'
     }).setOrigin(0.5).setAlpha(0.4);
 
-    this.add.text(MAP_SIZE * 0.2, MAP_SIZE * 0.75, 'BLUE', {
+    const blueLabel = this.add.text(MAP_SIZE * 0.2, MAP_SIZE * 0.75, '', {
       fontSize: '28px',
       color: '#0000ff',
       fontStyle: 'bold'
     }).setOrigin(0.5).setAlpha(0.4);
+
+    this.teamLabels = { red: redLabel, blue: blueLabel };
 
     // Click instruction
     this.add.text(centerX, MAP_SIZE * 0.5, 'Click area to change team', {
@@ -119,51 +166,97 @@ export class LobbyScene extends Phaser.Scene {
     this.data.set('startButton', startButton);
   }
 
-  private drawTeamZones() {
+
+  /**
+   * Handle team selection click
+   * Converts view coordinates to server coordinates and determines which team area was clicked
+   */
+  private handleTeamClick(viewX: number, viewY: number) {
+    // Convert view coordinates to server coordinates
+    const serverPos = this.toServerCoords(viewX, viewY);
+
+    // Check if click is within playable area
     const topY = PLAYABLE_AREA_TOP;
     const bottomY = PLAYABLE_AREA_BOTTOM;
-    const height = PLAYABLE_AREA_HEIGHT;
 
-    // Red zone (top-right triangle)
-    // Diagonal goes from top-left (0, topY) to bottom-right (width, bottomY)
-    this.redZone = this.add.graphics();
-    this.redZone.fillStyle(0xff0000, 0.1);
+    if (serverPos.y < topY || serverPos.y > bottomY) {
+      return; // Outside playable area
+    }
+
+    // Determine which side of the diagonal the click is on
+    // Diagonal line: y = topY + (bottomY - topY) * (x / MAP_SIZE)
+    const diagonalY = topY + (bottomY - topY) * (serverPos.x / MAP_SIZE);
+
+    if (serverPos.y < diagonalY) {
+      // Above diagonal = Red team (in server coordinates)
+      this.selectTeam('red');
+    } else {
+      // Below diagonal = Blue team (in server coordinates)
+      this.selectTeam('blue');
+    }
+  }
+
+  /**
+   * Update team UI based on player's team
+   * Players always see their own team in the bottom-left
+   */
+  private updateTeamUI() {
+    if (!this.myTeam || !this.teamLabels || !this.redZone || !this.blueZone) return;
+
+    const topY = PLAYABLE_AREA_TOP;
+    const bottomY = PLAYABLE_AREA_BOTTOM;
+
+    // Determine colors based on team
+    const isRedTeam = this.myTeam === 'red';
+    const bottomLeftColor = isRedTeam ? 0xff0000 : 0x0000ff;
+    const topRightColor = isRedTeam ? 0x0000ff : 0xff0000;
+
+    // Redraw zones with correct colors
+    this.redZone.clear();
+    this.redZone.fillStyle(topRightColor, 0.1);
     this.redZone.beginPath();
-    this.redZone.moveTo(0, topY);           // Top-left corner
-    this.redZone.lineTo(MAP_SIZE, topY);    // Top-right corner
-    this.redZone.lineTo(MAP_SIZE, bottomY); // Bottom-right corner
-    this.redZone.lineTo(0, topY);           // Back to top-left (diagonal)
+    this.redZone.moveTo(0, topY);
+    this.redZone.lineTo(MAP_SIZE, topY);
+    this.redZone.lineTo(MAP_SIZE, bottomY);
+    this.redZone.lineTo(0, topY);
     this.redZone.closePath();
     this.redZone.fillPath();
 
-    // Blue zone (bottom-left triangle)
-    this.blueZone = this.add.graphics();
-    this.blueZone.fillStyle(0x0000ff, 0.1);
+    this.blueZone.clear();
+    this.blueZone.fillStyle(bottomLeftColor, 0.1);
     this.blueZone.beginPath();
-    this.blueZone.moveTo(0, topY);          // Top-left corner (diagonal start)
-    this.blueZone.lineTo(MAP_SIZE, bottomY); // Bottom-right corner (diagonal end)
-    this.blueZone.lineTo(0, bottomY);       // Bottom-left corner
+    this.blueZone.moveTo(0, topY);
+    this.blueZone.lineTo(MAP_SIZE, bottomY);
+    this.blueZone.lineTo(0, bottomY);
     this.blueZone.closePath();
     this.blueZone.fillPath();
 
-    // Diagonal line
-    const line = this.add.graphics();
-    line.lineStyle(2, 0xffffff, 0.5);
-    line.beginPath();
-    line.moveTo(0, topY);
-    line.lineTo(MAP_SIZE, bottomY);
-    line.strokePath();
+    // Update team labels to show "MY TEAM" for player's team
+    if (isRedTeam) {
+      // Red team sees: bottom-left = RED (my team), top-right = BLUE
+      this.teamLabels.red.setText('MY TEAM\n(RED)');
+      this.teamLabels.red.setFontSize('24px');
+      this.teamLabels.blue.setText('BLUE');
+      this.teamLabels.blue.setFontSize('28px');
 
-    // Make zones clickable
-    // Red zone: upper-right area
-    const redHitArea = this.add.zone(MAP_SIZE * 0.65, topY + height * 0.35, MAP_SIZE * 0.6, height * 0.5);
-    redHitArea.setInteractive({ useHandCursor: true });
-    redHitArea.on('pointerdown', () => this.selectTeam('red'));
+      // Update positions (180 degree rotation for red team)
+      const redPos = this.toViewCoords(MAP_SIZE * 0.8, MAP_SIZE * 0.25);
+      const bluePos = this.toViewCoords(MAP_SIZE * 0.2, MAP_SIZE * 0.75);
+      this.teamLabels.red.setPosition(redPos.x, redPos.y);
+      this.teamLabels.blue.setPosition(bluePos.x, bluePos.y);
+    } else {
+      // Blue team sees: bottom-left = BLUE (my team), top-right = RED
+      this.teamLabels.blue.setText('MY TEAM\n(BLUE)');
+      this.teamLabels.blue.setFontSize('24px');
+      this.teamLabels.red.setText('RED');
+      this.teamLabels.red.setFontSize('28px');
 
-    // Blue zone: lower-left area
-    const blueHitArea = this.add.zone(MAP_SIZE * 0.35, topY + height * 0.65, MAP_SIZE * 0.6, height * 0.5);
-    blueHitArea.setInteractive({ useHandCursor: true });
-    blueHitArea.on('pointerdown', () => this.selectTeam('blue'));
+      // Positions stay the same for blue team
+      this.teamLabels.red.setPosition(MAP_SIZE * 0.8, MAP_SIZE * 0.25);
+      this.teamLabels.blue.setPosition(MAP_SIZE * 0.2, MAP_SIZE * 0.75);
+    }
+
+    // Player sprites will be updated by updatePlayers() which called this method
   }
 
   private setupRoomHandlers() {
@@ -235,6 +328,18 @@ export class LobbyScene extends Phaser.Scene {
     const state = this.room.state as any;
     if (!state.players) return;
 
+    // Check if current player's team has changed
+    const currentPlayer = state.players.get(this.room.sessionId);
+    if (currentPlayer?.team && currentPlayer.team !== this.myTeam) {
+      // Team changed - update UI
+      this.myTeam = currentPlayer.team;
+      this.updateTeamUI();
+    } else if (currentPlayer?.team && !this.myTeam) {
+      // First time getting team info
+      this.myTeam = currentPlayer.team;
+      this.updateTeamUI();
+    }
+
     // Update player positions based on team
     state.players.forEach((player: any, sessionId: string) => {
       this.updatePlayerSprite(sessionId, player);
@@ -278,26 +383,28 @@ export class LobbyScene extends Phaser.Scene {
 
     // Update position based on team
     const isCurrentPlayer = sessionId === this.room?.sessionId;
-    let x: number, y: number;
+    let serverX: number, serverY: number;
 
     if (player.team === 'red') {
-      // Red zone: arrange parallel to diagonal
+      // Red zone: arrange parallel to diagonal (server coordinates)
       const index = this.getTeamPlayerIndex(sessionId, 'red');
-      x = MAP_SIZE * 0.54 + index * PLAYER_SPACING;
-      y = MAP_SIZE * 0.24 + index * PLAYER_SPACING;
+      serverX = MAP_SIZE * 0.54 + index * PLAYER_SPACING;
+      serverY = MAP_SIZE * 0.24 + index * PLAYER_SPACING;
     } else if (player.team === 'blue') {
-      // Blue zone: arrange parallel to diagonal
+      // Blue zone: arrange parallel to diagonal (server coordinates)
       const index = this.getTeamPlayerIndex(sessionId, 'blue');
-      x = MAP_SIZE * 0.2 + index * PLAYER_SPACING;
-      y = MAP_SIZE * 0.5 + index * PLAYER_SPACING;
+      serverX = MAP_SIZE * 0.2 + index * PLAYER_SPACING;
+      serverY = MAP_SIZE * 0.5 + index * PLAYER_SPACING;
     } else {
       // No team - position along center diagonal
       const index = this.getNoTeamPlayerIndex(sessionId);
-      x = MAP_SIZE * 0.37 + index * PLAYER_SPACING;
-      y = MAP_SIZE * 0.37 + index * PLAYER_SPACING;
+      serverX = MAP_SIZE * 0.37 + index * PLAYER_SPACING;
+      serverY = MAP_SIZE * 0.37 + index * PLAYER_SPACING;
     }
 
-    container.setPosition(x, y);
+    // Convert to view coordinates
+    const viewPos = this.toViewCoords(serverX, serverY);
+    container.setPosition(viewPos.x, viewPos.y);
 
     // Update sprite texture based on team
     const sprite = container.getData('sprite') as Phaser.GameObjects.Sprite;

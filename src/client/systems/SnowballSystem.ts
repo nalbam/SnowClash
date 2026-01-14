@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { MAP_SIZE } from '../../shared/constants';
 
 export interface SnowballState {
   x: number;
@@ -18,15 +19,34 @@ interface SnowballSpriteData {
  * - Update snowball positions
  * - Remove snowballs and create debris effects
  * - Track snowball states for proper cleanup
+ * - Convert server coordinates to view coordinates (for red team rotation)
  */
 export class SnowballSystem {
   private scene: Phaser.Scene;
   private snowballs: Map<string, SnowballSpriteData> = new Map();
   private snowballPositions: Map<string, SnowballState> = new Map();
   private fadingSnowballs: Set<string> = new Set();
+  private myTeam?: string;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+  }
+
+  /**
+   * Set the current player's team (for coordinate transformation)
+   */
+  public setMyTeam(team: string): void {
+    this.myTeam = team;
+  }
+
+  /**
+   * Convert server coordinates to view coordinates
+   */
+  private toViewCoords(x: number, y: number): { x: number; y: number } {
+    if (this.myTeam === 'red') {
+      return { x: MAP_SIZE - x, y: MAP_SIZE - y };
+    }
+    return { x, y };
   }
 
   /**
@@ -34,7 +54,10 @@ export class SnowballSystem {
    */
   public createSnowball(id: string, state: SnowballState): void {
     const textureKey = this.getTextureKey(state.team, state.damage);
-    const sprite = this.scene.add.sprite(state.x, state.y, textureKey);
+
+    // Convert server coordinates to view coordinates
+    const viewPos = this.toViewCoords(state.x, state.y);
+    const sprite = this.scene.add.sprite(viewPos.x, viewPos.y, textureKey);
 
     this.snowballs.set(id, { sprite });
     this.snowballPositions.set(id, { ...state });
@@ -50,9 +73,11 @@ export class SnowballSystem {
     // Don't update fading snowballs
     if (this.fadingSnowballs.has(id)) return;
 
-    snowballData.sprite.setPosition(state.x, state.y);
+    // Convert server coordinates to view coordinates
+    const viewPos = this.toViewCoords(state.x, state.y);
+    snowballData.sprite.setPosition(viewPos.x, viewPos.y);
 
-    // Store updated position
+    // Store updated position (server coordinates)
     this.snowballPositions.set(id, { ...state });
   }
 
@@ -63,11 +88,14 @@ export class SnowballSystem {
     const snowballData = this.snowballs.get(id);
     if (!snowballData) return;
 
-    // Get snowball position and team info
+    // Get snowball position and team info (server coordinates)
     const storedPos = this.snowballPositions.get(id);
-    const x = state?.x ?? storedPos?.x ?? 0;
-    const y = state?.y ?? storedPos?.y ?? 0;
+    const serverX = state?.x ?? storedPos?.x ?? 0;
+    const serverY = state?.y ?? storedPos?.y ?? 0;
     const team = state?.team ?? storedPos?.team ?? 'red';
+
+    // Convert to view coordinates for debris effect
+    const viewPos = this.toViewCoords(serverX, serverY);
 
     // Remove original snowball immediately
     this.fadingSnowballs.delete(id);
@@ -75,8 +103,8 @@ export class SnowballSystem {
     this.snowballPositions.delete(id);
     snowballData.sprite.destroy();
 
-    // Create debris effect
-    this.createDebrisEffect(x, y, team);
+    // Create debris effect at view coordinates
+    this.createDebrisEffect(viewPos.x, viewPos.y, team);
   }
 
   /**
