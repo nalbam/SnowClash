@@ -122,7 +122,8 @@ else
   echo "  Email:         $EMAIL"
   echo "=============================================="
   echo ""
-  read -p "Continue with these settings? (y/n): " CONFIRM
+  read -p "Continue with these settings? (Y/n): " CONFIRM
+  CONFIRM=${CONFIRM:-Y}
   if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
     log_warn "Deployment cancelled."
     exit 0
