@@ -512,8 +512,8 @@ if [ -f "$INSTALL_DIR/.env" ]; then
     SERVER_URL="$DOMAIN"
   fi
 else
-  # Fresh install
-  ALLOWED_ORIGINS="https://$DOMAIN"
+  # Fresh install - include both server domain and GitHub Pages client
+  ALLOWED_ORIGINS="https://$DOMAIN,https://nalbam.github.io"
   SERVER_URL="$DOMAIN"
   EXISTING_REDIS_URL=""
 fi

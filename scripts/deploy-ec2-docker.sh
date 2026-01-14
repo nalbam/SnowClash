@@ -459,7 +459,8 @@ log_success "Auto-renewal configured"
 # ============================================
 log_info "Configuring environment file..."
 
-ALLOWED_ORIGINS="https://$DOMAIN"
+# Include both server domain and GitHub Pages client
+ALLOWED_ORIGINS="https://$DOMAIN,https://nalbam.github.io"
 
 cat > "$INSTALL_DIR/.env" <<EOF
 # SnowClash Docker Production Environment
