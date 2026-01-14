@@ -48,6 +48,7 @@ cd SnowClash
 | 스크립트 | 설명 |
 |---------|------|
 | `deploy-ec2.sh` | 전체 배포 또는 빠른 업데이트 |
+| `diagnose.sh` | 서버 상태 종합 진단 (10가지 항목 체크) |
 | `ec2-user-data.sh` | EC2 User Data용 초기 설정 |
 
 ## 배포 후 생성되는 관리 스크립트
@@ -61,9 +62,46 @@ cd SnowClash
 | `logs.sh` | 로그 확인 |
 | `status.sh` | 상태 확인 |
 
+## .env 파일 관리
+
+### 현재 설정 확인
+
+```bash
+cat ~/SnowClash/.env
+```
+
+### 설정 예시
+
+```bash
+NODE_ENV=production
+PORT=2567
+ALLOWED_ORIGINS=https://nalbam.github.io,https://snowclash.server.nalbam.com
+SERVER_URL=snowclash.server.nalbam.com
+```
+
+**중요:**
+- `ALLOWED_ORIGINS`: 쉼표로 구분, 공백 없음
+- 여러 도메인 지원 (GitHub Pages + 커스텀 도메인)
+- 수정 후 `pm2 restart snowclash` 필수
+
+### .env 백업 복구
+
+deploy-ec2.sh는 자동 백업 생성:
+
+```bash
+# 백업 파일 확인
+ls -lt ~/SnowClash/.env.backup.* | head -1
+
+# 복구
+cp ~/SnowClash/.env.backup.20260114_153045 ~/SnowClash/.env
+pm2 restart snowclash
+```
+
 ## 게임 업데이트
 
 기존 설치를 최신 버전으로 업데이트하는 방법:
+
+**중요:** 업데이트 모드는 .env 파일을 수정하지 않습니다.
 
 ### 방법 1: 빠른 업데이트 (추천, 1-2분)
 
@@ -94,6 +132,110 @@ cd ~/SnowClash
 cd ~/SnowClash/scripts
 ./deploy-ec2.sh
 # 2 선택
+```
+
+## 서버 상태 진단
+
+### 자동 진단 (추천)
+
+```bash
+cd ~/SnowClash/scripts
+./diagnose.sh
+```
+
+**체크 항목:**
+1. ✓ 시스템 리소스 (CPU, 메모리, 디스크)
+2. ✓ PM2 프로세스 상태
+3. ✓ Node.js 서버 포트 (2567)
+4. ✓ Nginx 서비스
+5. ✓ HTTP/HTTPS 포트 (80, 443)
+6. ✓ SSL 인증서 유효기간
+7. ✓ Public API 응답
+8. ✓ WebSocket 설정
+9. ✓ 애플리케이션 로그
+10. ✓ 방화벽 설정
+
+### 수동 진단
+
+**1. PM2 프로세스 확인**
+```bash
+pm2 status
+# 예상: snowclash - online
+
+pm2 logs snowclash --lines 20
+# 최근 로그 확인
+```
+
+**2. Node.js 서버 확인**
+```bash
+# 로컬 서버 응답 확인
+curl http://localhost:2567
+# 예상: "SnowClash Server OK"
+
+# 포트 리스닝 확인
+netstat -tulpn | grep 2567
+# 예상: tcp ... 0.0.0.0:2567 ... LISTEN
+```
+
+**3. Nginx 확인**
+```bash
+# 서비스 상태
+sudo systemctl status nginx
+
+# 설정 테스트
+sudo nginx -t
+# 예상: syntax is ok, test is successful
+
+# 로그 확인
+sudo tail -f /var/log/nginx/error.log
+```
+
+**4. SSL 인증서 확인**
+```bash
+sudo certbot certificates
+# 예상: Expiry Date 확인 (30일 이상 남았는지)
+
+# 자동 갱신 테스트
+sudo certbot renew --dry-run
+```
+
+**5. Public API 테스트**
+```bash
+# 도메인으로 API 호출 (your-domain.com을 실제 도메인으로 변경)
+curl https://your-domain.com/api/rooms
+# 예상: [] (빈 배열) 또는 방 목록
+
+curl https://your-domain.com/api/nickname
+# 예상: {"nickname":"RandomName"}
+```
+
+**6. WebSocket 연결 테스트**
+```bash
+# WebSocket 업그레이드 헤더 지원 확인
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" https://your-domain.com/matchmake
+# 예상: 101 Switching Protocols 또는 400 (정상)
+```
+
+**7. 네트워크 포트 확인**
+```bash
+# 열린 포트 확인
+sudo netstat -tulpn | grep -E ':(80|443|2567)'
+# 예상:
+#   80 - nginx
+#   443 - nginx
+#   2567 - node
+```
+
+**8. 시스템 리소스 확인**
+```bash
+# CPU, 메모리 사용률
+top -bn1 | head -20
+
+# 디스크 사용률
+df -h
+
+# 메모리 상세
+free -h
 ```
 
 ## 수동 배포 (User Data 없이)

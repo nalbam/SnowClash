@@ -155,6 +155,7 @@ if [ "$UPDATE_MODE" = true ]; then
   pm2 restart "$APP_NAME"
 
   log_success "Update completed!"
+  log_info ".env file preserved (not modified)"
 
   echo ""
   echo "=============================================="
@@ -167,6 +168,10 @@ if [ "$UPDATE_MODE" = true ]; then
   echo "  Check status:"
   echo "    pm2 status"
   echo "    pm2 logs $APP_NAME"
+  echo "    ./diagnose.sh  (run full diagnostics)"
+  echo ""
+  echo "  Note: .env file was NOT modified"
+  echo "  To view current settings: cat ~/SnowClash/.env"
   echo ""
   echo "=============================================="
 
@@ -390,16 +395,59 @@ log_success "Auto-renewal configured"
 # ============================================
 # 13. Create Environment File
 # ============================================
-log_info "Creating environment file..."
+log_info "Configuring environment file..."
 
+# Backup existing .env if it exists
+if [ -f "$INSTALL_DIR/.env" ]; then
+  BACKUP_FILE="$INSTALL_DIR/.env.backup.$(date +%Y%m%d_%H%M%S)"
+  cp "$INSTALL_DIR/.env" "$BACKUP_FILE"
+  log_info "Existing .env backed up to: $BACKUP_FILE"
+
+  # Load existing values
+  EXISTING_ORIGINS=$(grep -E "^ALLOWED_ORIGINS=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+  EXISTING_SERVER_URL=$(grep -E "^SERVER_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+  EXISTING_REDIS_URL=$(grep -E "^REDIS_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+
+  # Merge ALLOWED_ORIGINS (keep existing domains, add new one if not present)
+  if [ -n "$EXISTING_ORIGINS" ]; then
+    if echo "$EXISTING_ORIGINS" | grep -q "https://$DOMAIN"; then
+      ALLOWED_ORIGINS="$EXISTING_ORIGINS"
+    else
+      ALLOWED_ORIGINS="$EXISTING_ORIGINS,https://$DOMAIN"
+    fi
+  else
+    ALLOWED_ORIGINS="https://$DOMAIN"
+  fi
+
+  # Use existing SERVER_URL or set to new domain
+  if [ -n "$EXISTING_SERVER_URL" ]; then
+    SERVER_URL="$EXISTING_SERVER_URL"
+  else
+    SERVER_URL="$DOMAIN"
+  fi
+else
+  # Fresh install
+  ALLOWED_ORIGINS="https://$DOMAIN"
+  SERVER_URL="$DOMAIN"
+  EXISTING_REDIS_URL=""
+fi
+
+# Create .env file
 cat > "$INSTALL_DIR/.env" <<EOF
 # SnowClash Production Environment
 NODE_ENV=production
 PORT=2567
-ALLOWED_ORIGINS=https://$DOMAIN
+ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+SERVER_URL=$SERVER_URL
 EOF
 
-log_success "Environment file created"
+# Add REDIS_URL if it exists
+if [ -n "$EXISTING_REDIS_URL" ]; then
+  echo "REDIS_URL=$EXISTING_REDIS_URL" >> "$INSTALL_DIR/.env"
+fi
+
+log_success "Environment file configured"
+log_info "ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
 
 # ============================================
 # 14. Start Application with PM2
@@ -514,6 +562,11 @@ echo "=== SSL Certificate ==="
 sudo certbot certificates
 EOF
 
+# Diagnose script (copy from scripts/)
+if [ -f "$INSTALL_DIR/scripts/diagnose.sh" ]; then
+  cp "$INSTALL_DIR/scripts/diagnose.sh" "$INSTALL_DIR/diagnose.sh"
+fi
+
 chmod +x "$INSTALL_DIR"/*.sh
 
 log_success "Management scripts created"
@@ -530,12 +583,13 @@ echo "  Your game is available at:"
 echo -e "  ${BLUE}https://$DOMAIN${NC}"
 echo ""
 echo "  Management commands:"
-echo "    ./start.sh   - Start the server"
-echo "    ./stop.sh    - Stop the server"
-echo "    ./restart.sh - Restart the server"
-echo "    ./update.sh  - Pull latest and rebuild"
-echo "    ./logs.sh    - View application logs"
-echo "    ./status.sh  - Check status"
+echo "    ./start.sh    - Start the server"
+echo "    ./stop.sh     - Stop the server"
+echo "    ./restart.sh  - Restart the server"
+echo "    ./update.sh   - Pull latest and rebuild"
+echo "    ./logs.sh     - View application logs"
+echo "    ./status.sh   - Check status"
+echo "    ./diagnose.sh - Run diagnostics (10 checks)"
 echo ""
 echo "  PM2 commands:"
 echo "    pm2 status   - Check process status"
