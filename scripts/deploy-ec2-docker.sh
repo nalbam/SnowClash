@@ -106,9 +106,19 @@ echo ""
 INSTALL_DIR="/home/ec2-user/SnowClash"
 
 # ============================================
+# Detect Docker command (with or without sudo)
+# ============================================
+DOCKER_CMD="docker"
+if ! docker ps &>/dev/null; then
+  if sudo docker ps &>/dev/null; then
+    DOCKER_CMD="sudo docker"
+  fi
+fi
+
+# ============================================
 # Detect if server is already running → Quick Update
 # ============================================
-if [ -f "$INSTALL_DIR/.env" ] && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
+if [ -f "$INSTALL_DIR/.env" ] && $DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
   log_info "Server is running. Updating to new version..."
 
   # Load environment
@@ -119,13 +129,13 @@ if [ -f "$INSTALL_DIR/.env" ] && docker ps --format '{{.Names}}' 2>/dev/null | g
 
   # Pull and restart container
   log_info "Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
-  docker pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
+  $DOCKER_CMD pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
 
   log_info "Restarting container with new version..."
-  docker stop "$CONTAINER_NAME" 2>/dev/null || true
-  docker rm "$CONTAINER_NAME" 2>/dev/null || true
+  $DOCKER_CMD stop "$CONTAINER_NAME" 2>/dev/null || true
+  $DOCKER_CMD rm "$CONTAINER_NAME" 2>/dev/null || true
 
-  docker run -d \
+  $DOCKER_CMD run -d \
     --name "$CONTAINER_NAME" \
     --restart unless-stopped \
     -p 127.0.0.1:${PORT}:${PORT} \
@@ -143,7 +153,7 @@ if [ -f "$INSTALL_DIR/.env" ] && docker ps --format '{{.Names}}' 2>/dev/null | g
   echo "  Deployed version: ${SELECTED_VERSION}"
   echo "  Server: https://${SERVER_URL}"
   echo ""
-  echo "  Check: docker ps | docker logs $CONTAINER_NAME"
+  echo "  Check: $DOCKER_CMD ps | $DOCKER_CMD logs $CONTAINER_NAME"
   echo ""
   exit 0
 fi
@@ -467,8 +477,8 @@ log_info "Creating management scripts..."
 cat > "$INSTALL_DIR/start.sh" <<EOF
 #!/bin/bash
 source $INSTALL_DIR/.env
-docker start $CONTAINER_NAME 2>/dev/null || \
-docker run -d \
+sudo docker start $CONTAINER_NAME 2>/dev/null || \
+sudo docker run -d \
   --name $CONTAINER_NAME \
   --restart unless-stopped \
   -p 127.0.0.1:\${PORT}:\${PORT} \
@@ -482,13 +492,13 @@ EOF
 # Stop script
 cat > "$INSTALL_DIR/stop.sh" <<EOF
 #!/bin/bash
-docker stop $CONTAINER_NAME
+sudo docker stop $CONTAINER_NAME
 EOF
 
 # Restart script
 cat > "$INSTALL_DIR/restart.sh" <<EOF
 #!/bin/bash
-docker restart $CONTAINER_NAME
+sudo docker restart $CONTAINER_NAME
 EOF
 
 # Update script (with version selection from GitHub releases)
@@ -507,6 +517,14 @@ source .env
 DOCKER_IMAGE="${DOCKER_IMAGE:-ghcr.io/nalbam/snowclash}"
 CONTAINER_NAME="snowclash"
 GITHUB_REPO="nalbam/SnowClash"
+
+# Detect Docker command (with or without sudo)
+DOCKER_CMD="docker"
+if ! docker ps &>/dev/null; then
+  if sudo docker ps &>/dev/null; then
+    DOCKER_CMD="sudo docker"
+  fi
+fi
 
 echo -e "${BLUE}[INFO]${NC} Fetching available versions from GitHub releases..."
 
@@ -551,14 +569,14 @@ else
 fi
 
 echo -e "${BLUE}[INFO]${NC} Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
-docker pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
+$DOCKER_CMD pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
 
 echo -e "${BLUE}[INFO]${NC} Stopping existing container..."
-docker stop "$CONTAINER_NAME" 2>/dev/null || true
-docker rm "$CONTAINER_NAME" 2>/dev/null || true
+$DOCKER_CMD stop "$CONTAINER_NAME" 2>/dev/null || true
+$DOCKER_CMD rm "$CONTAINER_NAME" 2>/dev/null || true
 
 echo -e "${BLUE}[INFO]${NC} Starting new container..."
-docker run -d \
+$DOCKER_CMD run -d \
   --name "$CONTAINER_NAME" \
   --restart unless-stopped \
   -p 127.0.0.1:${PORT}:${PORT} \
@@ -580,17 +598,17 @@ SCRIPT
 # Logs script
 cat > "$INSTALL_DIR/logs.sh" <<EOF
 #!/bin/bash
-docker logs -f $CONTAINER_NAME
+sudo docker logs -f $CONTAINER_NAME
 EOF
 
 # Status script
 cat > "$INSTALL_DIR/status.sh" <<EOF
 #!/bin/bash
 echo "=== Docker Container Status ==="
-docker ps -a --filter "name=$CONTAINER_NAME"
+sudo docker ps -a --filter "name=$CONTAINER_NAME"
 echo ""
 echo "=== Container Logs (last 20 lines) ==="
-docker logs --tail 20 $CONTAINER_NAME
+sudo docker logs --tail 20 $CONTAINER_NAME
 echo ""
 echo "=== Nginx Status ==="
 sudo systemctl status nginx --no-pager
@@ -603,7 +621,7 @@ EOF
 cat > "$INSTALL_DIR/cleanup.sh" <<EOF
 #!/bin/bash
 echo "Removing unused Docker images..."
-docker image prune -af
+sudo docker image prune -af
 echo "Done!"
 EOF
 
