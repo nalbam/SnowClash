@@ -62,26 +62,29 @@ select_version() {
     tags=$(fetch_versions)
 
     if [[ -z "$tags" ]]; then
-        log_warn "Could not fetch releases. Enter version manually."
-        read -rp "Version [latest]: " version
+        log_warn "Could not fetch releases. Enter version manually." >/dev/tty
+        read -rp "Version [latest]: " version </dev/tty
         version=${version:-latest}
         echo "${version#v}"
         return 0
     fi
 
-    echo ""
-    echo "Available versions:"
-    echo "  0) latest"
+    {
+        echo ""
+        echo "Available versions:"
+        echo "  0) latest"
 
-    local i=1
-    while IFS= read -r tag; do
-        [[ -z "$tag" ]] && continue
-        echo "  $i) $tag"
-        ((i++))
-    done <<< "$tags"
+        local i=1
+        while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            echo "  $i) $tag"
+            ((i++))
+        done <<< "$tags"
 
-    echo ""
-    read -rp "Select version [1]: " choice
+        echo ""
+    } >/dev/tty
+
+    read -rp "Select version [1]: " choice </dev/tty
     choice=${choice:-1}
 
     local selected

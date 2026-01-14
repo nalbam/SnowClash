@@ -191,24 +191,27 @@ select_version() {
     tags=$(fetch_versions)
 
     if [[ -z "$tags" ]]; then
-        log_warn "Could not fetch releases. Using 'latest'."
+        log_warn "Could not fetch releases. Using 'latest'." >/dev/tty
         echo "latest"
         return 0
     fi
 
-    echo ""
-    echo "Available versions:"
-    echo "  0) latest"
+    {
+        echo ""
+        echo "Available versions:"
+        echo "  0) latest"
 
-    local i=1
-    while IFS= read -r tag; do
-        [[ -z "$tag" ]] && continue
-        echo "  $i) $tag"
-        ((i++))
-    done <<< "$tags"
+        local i=1
+        while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            echo "  $i) $tag"
+            ((i++))
+        done <<< "$tags"
 
-    echo ""
-    read -rp "Select version [1]: " choice
+        echo ""
+    } >/dev/tty
+
+    read -rp "Select version [1]: " choice </dev/tty
     choice=${choice:-1}
 
     local selected
@@ -217,7 +220,7 @@ select_version() {
     else
         selected=$(echo "$tags" | sed -n "${choice}p")
         if [[ -z "$selected" ]]; then
-            log_warn "Invalid selection. Using first tag."
+            log_warn "Invalid selection. Using first tag." >/dev/tty
             selected=$(echo "$tags" | head -1)
         fi
     fi
