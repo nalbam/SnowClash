@@ -3,299 +3,301 @@
 # SnowClash EC2 Docker Deployment Script
 # Amazon Linux 2023 + Docker + Nginx + Let's Encrypt
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/nalbam/SnowClash/main/scripts/deploy-ec2-docker.sh | bash
-#        or: ./deploy-ec2-docker.sh
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/nalbam/SnowClash/main/scripts/deploy-ec2-docker.sh | bash
+#   or: ./deploy-ec2-docker.sh
 #
 
-set -e
+set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# =============================================================================
+# Configuration
+# =============================================================================
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly INSTALL_DIR="/home/ec2-user/SnowClash"
+readonly DOCKER_IMAGE="ghcr.io/nalbam/snowclash"
+readonly CONTAINER_NAME="snowclash"
+readonly APP_PORT="2567"
+readonly GITHUB_REPO="nalbam/SnowClash"
+readonly SSM_PARAM_NAME="${SSM_PARAM_NAME:-/env/prod/snowclash}"
 
-log_info() {
-  echo -e "${BLUE}[INFO]${NC} $1"
-}
+# =============================================================================
+# Colors and Logging
+# =============================================================================
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m'
 
-log_success() {
-  echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
+log_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error()   { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+log_fatal()   { log_error "$1"; exit 1; }
 
-log_warn() {
-  echo -e "${YELLOW}[WARN]${NC} $1"
-}
+# =============================================================================
+# Functions
+# =============================================================================
 
-log_error() {
-  echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Docker image configuration
-DOCKER_IMAGE="ghcr.io/nalbam/snowclash"
-CONTAINER_NAME="snowclash"
-APP_PORT=2567
-GITHUB_REPO="nalbam/SnowClash"
-
-# Select version (tag) to deploy from GitHub releases
-select_version() {
-  log_info "Fetching available versions from GitHub releases..."
-
-  # Get release tags from GitHub API (public, no auth required)
-  local tags=""
-  tags=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases" 2>/dev/null | \
-    grep -o '"tag_name": "[^"]*"' | sed 's/"tag_name": "//;s/"//' | head -10 || echo "")
-
-  if [ -z "$tags" ]; then
-    # Fallback: ask user to input version or use latest
-    log_warn "Could not fetch releases automatically."
-    echo ""
-    echo "Enter version to deploy (e.g., 1.0.1, latest):"
-    read -p "Version [latest]: " SELECTED_VERSION
-    SELECTED_VERSION=${SELECTED_VERSION:-latest}
-    # Remove 'v' prefix if present (Docker tags don't have 'v' prefix)
-    SELECTED_VERSION="${SELECTED_VERSION#v}"
-    return 0
-  fi
-
-  echo ""
-  echo "Available versions:"
-  echo "  0) latest"
-
-  local i=1
-  while IFS= read -r tag; do
-    [ -z "$tag" ] && continue
-    echo "  $i) $tag"
-    i=$((i + 1))
-  done <<< "$tags"
-
-  echo ""
-  read -p "Select version [1]: " VERSION_CHOICE
-  VERSION_CHOICE=${VERSION_CHOICE:-1}
-
-  if [ "$VERSION_CHOICE" = "0" ]; then
-    SELECTED_VERSION="latest"
-    log_info "Selected: latest"
-  else
-    SELECTED_VERSION=$(echo "$tags" | sed -n "${VERSION_CHOICE}p")
-    if [ -z "$SELECTED_VERSION" ]; then
-      log_warn "Invalid selection. Using latest release."
-      SELECTED_VERSION=$(echo "$tags" | head -1)
+detect_docker_cmd() {
+    if docker ps &>/dev/null; then
+        echo "docker"
+    elif sudo docker ps &>/dev/null; then
+        echo "sudo docker"
+    else
+        echo ""
     fi
-    log_info "Selected version: $SELECTED_VERSION"
-  fi
-
-  # Remove 'v' prefix if present (Docker tags don't have 'v' prefix)
-  SELECTED_VERSION="${SELECTED_VERSION#v}"
 }
 
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then
-  log_error "Please do not run as root. Run as ec2-user."
-  exit 1
+fetch_versions() {
+    curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases" 2>/dev/null | \
+        grep -o '"tag_name": "[^"]*"' | \
+        sed 's/"tag_name": "//;s/"//' | \
+        head -10 || echo ""
+}
+
+select_version() {
+    local tags
+    tags=$(fetch_versions)
+
+    if [[ -z "$tags" ]]; then
+        log_warn "Could not fetch releases. Enter version manually."
+        read -rp "Version [latest]: " version
+        version=${version:-latest}
+        echo "${version#v}"
+        return 0
+    fi
+
+    echo ""
+    echo "Available versions:"
+    echo "  0) latest"
+
+    local i=1
+    while IFS= read -r tag; do
+        [[ -z "$tag" ]] && continue
+        echo "  $i) $tag"
+        ((i++))
+    done <<< "$tags"
+
+    echo ""
+    read -rp "Select version [1]: " choice
+    choice=${choice:-1}
+
+    local selected
+    if [[ "$choice" == "0" ]]; then
+        selected="latest"
+    else
+        selected=$(echo "$tags" | sed -n "${choice}p")
+        [[ -z "$selected" ]] && selected=$(echo "$tags" | head -1)
+    fi
+
+    echo "${selected#v}"
+}
+
+fetch_env_from_ssm() {
+    local param_name="$1"
+    local output_file="$2"
+
+    log_info "Fetching environment from SSM: $param_name"
+
+    if ! command -v aws &>/dev/null; then
+        log_warn "AWS CLI not found. Skipping SSM fetch."
+        return 1
+    fi
+
+    local env_content
+    env_content=$(aws ssm get-parameter \
+        --name "$param_name" \
+        --with-decryption \
+        --output text \
+        --query Parameter.Value 2>/dev/null) || {
+        log_warn "Failed to fetch SSM parameter"
+        return 1
+    }
+
+    if [[ -n "$env_content" ]]; then
+        echo "$env_content" > "$output_file"
+        chmod 600 "$output_file"
+        log_success "Environment saved to: $output_file"
+        return 0
+    fi
+
+    return 1
+}
+
+# =============================================================================
+# Pre-checks
+# =============================================================================
+
+if [[ "$EUID" -eq 0 ]]; then
+    log_fatal "Please do not run as root. Run as ec2-user."
 fi
 
 echo ""
 echo "=============================================="
-echo "   SnowClash EC2 Docker Deployment Script"
+echo "   SnowClash EC2 Docker Deployment"
 echo "=============================================="
 echo ""
 
-# Installation directory (for config files)
-INSTALL_DIR="/home/ec2-user/SnowClash"
+# =============================================================================
+# Quick Update Mode (if container is already running)
+# =============================================================================
 
-# ============================================
-# Detect Docker command (with or without sudo)
-# ============================================
-DOCKER_CMD="docker"
-if ! docker ps &>/dev/null; then
-  if sudo docker ps &>/dev/null; then
-    DOCKER_CMD="sudo docker"
-  fi
+docker_cmd=$(detect_docker_cmd)
+
+if [[ -n "$docker_cmd" ]] && \
+   [[ -f "$INSTALL_DIR/.env" ]] && \
+   $docker_cmd ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
+
+    log_info "Running container detected. Quick update mode."
+
+    # Select version
+    version=$(select_version)
+    image="${DOCKER_IMAGE}:${version}"
+
+    # Optionally refresh .env from SSM
+    read -rp "Refresh .env from SSM? (y/N): " refresh_env
+    if [[ "$refresh_env" =~ ^[Yy]$ ]]; then
+        fetch_env_from_ssm "$SSM_PARAM_NAME" "$INSTALL_DIR/.env" || true
+    fi
+
+    # Pull and restart
+    log_info "Pulling image: $image"
+    $docker_cmd pull "$image"
+
+    log_info "Restarting container..."
+    $docker_cmd stop "$CONTAINER_NAME" 2>/dev/null || true
+    $docker_cmd rm "$CONTAINER_NAME" 2>/dev/null || true
+
+    $docker_cmd run -d \
+        --name "$CONTAINER_NAME" \
+        --restart unless-stopped \
+        -p "127.0.0.1:${APP_PORT}:${APP_PORT}" \
+        --env-file "$INSTALL_DIR/.env" \
+        "$image"
+
+    log_success "Update completed!"
+    echo ""
+    echo "  Version: $version"
+    echo "  Status:  $docker_cmd ps"
+    echo "  Logs:    $docker_cmd logs $CONTAINER_NAME"
+    echo ""
+    exit 0
 fi
 
-# ============================================
-# Detect if server is already running → Quick Update
-# ============================================
-if [ -f "$INSTALL_DIR/.env" ] && $DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
-  log_info "Server is running. Updating to new version..."
-
-  # Load environment
-  source "$INSTALL_DIR/.env"
-
-  # Select version
-  select_version
-
-  # Pull and restart container
-  log_info "Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
-  $DOCKER_CMD pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
-
-  log_info "Restarting container with new version..."
-  $DOCKER_CMD stop "$CONTAINER_NAME" 2>/dev/null || true
-  $DOCKER_CMD rm "$CONTAINER_NAME" 2>/dev/null || true
-
-  $DOCKER_CMD run -d \
-    --name "$CONTAINER_NAME" \
-    --restart unless-stopped \
-    -p 127.0.0.1:${PORT}:${PORT} \
-    -e NODE_ENV=production \
-    -e PORT=${PORT} \
-    -e ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
-    ${REDIS_URL:+-e REDIS_URL="${REDIS_URL}"} \
-    "${DOCKER_IMAGE}:${SELECTED_VERSION}"
-
-  # Update version in .env
-  sed -i "s/^DOCKER_TAG=.*/DOCKER_TAG=${SELECTED_VERSION}/" "$INSTALL_DIR/.env"
-
-  log_success "Update completed!"
-  echo ""
-  echo "  Deployed version: ${SELECTED_VERSION}"
-  echo "  Server: https://${SERVER_URL}"
-  echo ""
-  echo "  Check: $DOCKER_CMD ps | $DOCKER_CMD logs $CONTAINER_NAME"
-  echo ""
-  exit 0
-fi
-
-# ============================================
+# =============================================================================
 # Fresh Installation
-# ============================================
-log_info "No running server detected. Starting fresh installation..."
+# =============================================================================
 
-# Load defaults from .env if exists
-DEFAULT_DOMAIN=""
-DEFAULT_CLIENT_URL=""
-if [ -f "$INSTALL_DIR/.env" ]; then
-  DEFAULT_DOMAIN=$(grep -E "^SERVER_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
-  DEFAULT_CLIENT_URL=$(grep -E "^CLIENT_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
-fi
+log_info "No running container. Starting fresh installation..."
 
-# Get server domain
-if [ -n "$DEFAULT_DOMAIN" ]; then
-  read -p "Enter your server domain [$DEFAULT_DOMAIN]: " DOMAIN
-  DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
-else
-  read -p "Enter your server domain (e.g., game.example.com): " DOMAIN
-fi
+# Get domain for SSL
+read -rp "Enter your domain (e.g., game.example.com): " DOMAIN
+[[ -z "$DOMAIN" ]] && log_fatal "Domain is required"
 
-if [ -z "$DOMAIN" ]; then
-  log_error "Domain name is required!"
-  exit 1
-fi
+read -rp "Enter email for Let's Encrypt [admin@$DOMAIN]: " EMAIL
+EMAIL=${EMAIL:-admin@$DOMAIN}
 
-# Get client URL (GitHub Pages or custom domain)
-DEFAULT_CLIENT_URL=${DEFAULT_CLIENT_URL:-"https://nalbam.github.io"}
-read -p "Enter your client URL [$DEFAULT_CLIENT_URL]: " CLIENT_URL
-CLIENT_URL=${CLIENT_URL:-$DEFAULT_CLIENT_URL}
-
-# Get email for Let's Encrypt
-DEFAULT_EMAIL="admin@$DOMAIN"
-read -p "Enter your email for Let's Encrypt [$DEFAULT_EMAIL]: " EMAIL
-EMAIL=${EMAIL:-$DEFAULT_EMAIL}
-
-if [ -z "$EMAIL" ]; then
-  log_error "Email is required for Let's Encrypt!"
-  exit 1
-fi
-
-# Confirm settings
 echo ""
-echo "=============================================="
-echo "  Server Domain: $DOMAIN"
-echo "  Client URL:    $CLIENT_URL"
-echo "  Email:         $EMAIL"
-echo "=============================================="
+echo "  Domain: $DOMAIN"
+echo "  Email:  $EMAIL"
 echo ""
-read -p "Continue with these settings? (Y/n): " CONFIRM
-CONFIRM=${CONFIRM:-Y}
-if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
-  log_warn "Deployment cancelled."
-  exit 0
-fi
+read -rp "Continue? (Y/n): " confirm
+[[ "$confirm" =~ ^[Nn]$ ]] && exit 0
 
-log_info "Starting deployment..."
-
-# ============================================
-# Check and Install Docker if needed
-# ============================================
-install_docker_if_needed() {
-  if ! command -v docker &> /dev/null; then
-    log_info "Docker not found. Installing Docker..."
-    sudo dnf install -y docker
-    sudo systemctl enable docker
-    sudo systemctl start docker
-    sudo usermod -aG docker ec2-user
-    log_success "Docker installed"
-    # Need to use sg for this session since group membership isn't active yet
-    DOCKER_CMD="sg docker -c"
-  else
-    log_info "Docker is already installed"
-    DOCKER_CMD=""
-  fi
-}
-
-# ============================================
+# -----------------------------------------------------------------------------
 # 1. System Update
-# ============================================
+# -----------------------------------------------------------------------------
 log_info "Updating system packages..."
 sudo dnf update -y
 
-# ============================================
+# -----------------------------------------------------------------------------
 # 2. Install Docker
-# ============================================
-install_docker_if_needed
+# -----------------------------------------------------------------------------
+if ! command -v docker &>/dev/null; then
+    log_info "Installing Docker..."
+    sudo dnf install -y docker
+    sudo systemctl enable docker
+    sudo systemctl start docker
+    sudo usermod -aG docker "$(whoami)"
+    log_success "Docker installed"
+else
+    log_info "Docker already installed"
+fi
 
-# ============================================
+# Refresh docker command
+docker_cmd=$(detect_docker_cmd)
+[[ -z "$docker_cmd" ]] && docker_cmd="sg docker -c docker"
+
+# -----------------------------------------------------------------------------
 # 3. Install Nginx
-# ============================================
+# -----------------------------------------------------------------------------
 log_info "Installing Nginx..."
 sudo dnf install -y nginx
-
-# Enable and start Nginx
 sudo systemctl enable nginx
 sudo systemctl start nginx
+log_success "Nginx installed"
 
-log_success "Nginx installed and started"
-
-# ============================================
-# 4. Install Certbot (Let's Encrypt)
-# ============================================
+# -----------------------------------------------------------------------------
+# 4. Install Certbot
+# -----------------------------------------------------------------------------
 log_info "Installing Certbot..."
 sudo dnf install -y certbot python3-certbot-nginx
-
 log_success "Certbot installed"
 
-# ============================================
+# -----------------------------------------------------------------------------
 # 5. Create Installation Directory
-# ============================================
-log_info "Creating installation directory..."
+# -----------------------------------------------------------------------------
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# ============================================
-# 6. Select and Pull Docker Image
-# ============================================
-select_version
+# Clone repo for management scripts
+if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+    log_info "Cloning repository for management scripts..."
+    git clone https://github.com/nalbam/SnowClash.git "$INSTALL_DIR" 2>/dev/null || true
+fi
 
-log_info "Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
-# Use newgrp to apply docker group membership for this session
-sg docker -c "docker pull ${DOCKER_IMAGE}:${SELECTED_VERSION}"
+# -----------------------------------------------------------------------------
+# 6. Fetch Environment from SSM or Create Default
+# -----------------------------------------------------------------------------
+if ! fetch_env_from_ssm "$SSM_PARAM_NAME" "$INSTALL_DIR/.env"; then
+    log_info "Creating default .env file..."
 
-log_success "Docker image pulled"
+    read -rp "Enter CLIENT_URL [https://nalbam.github.io]: " CLIENT_URL
+    CLIENT_URL=${CLIENT_URL:-https://nalbam.github.io}
 
-# ============================================
-# 7. Configure Nginx (HTTP only, for Certbot)
-# ============================================
-log_info "Configuring Nginx (HTTP for Certbot)..."
+    cat > "$INSTALL_DIR/.env" <<EOF
+NODE_ENV=production
+PORT=${APP_PORT}
+SERVER_URL=${DOMAIN}
+CLIENT_URL=${CLIENT_URL}
+ALLOWED_ORIGINS=https://${DOMAIN},${CLIENT_URL}
+EOF
 
-# Remove default nginx config if exists
+    chmod 600 "$INSTALL_DIR/.env"
+    log_success "Default .env created"
+fi
+
+# -----------------------------------------------------------------------------
+# 7. Select and Pull Docker Image
+# -----------------------------------------------------------------------------
+version=$(select_version)
+image="${DOCKER_IMAGE}:${version}"
+
+log_info "Pulling image: $image"
+sg docker -c "docker pull $image" 2>/dev/null || sudo docker pull "$image"
+log_success "Image pulled"
+
+# -----------------------------------------------------------------------------
+# 8. Configure Nginx (HTTP)
+# -----------------------------------------------------------------------------
+log_info "Configuring Nginx..."
+
 sudo rm -f /etc/nginx/conf.d/default.conf
 
-# Create HTTP-only config first (for Certbot)
 sudo tee /etc/nginx/conf.d/snowclash.conf > /dev/null <<EOF
-# SnowClash Nginx Configuration (HTTP)
-# Generated by deploy-ec2-docker.sh
+# SnowClash Nginx Configuration
 
 map \$http_upgrade \$connection_upgrade {
     default upgrade;
@@ -309,15 +311,13 @@ upstream snowclash_backend {
 
 server {
     listen 80;
-    server_name $DOMAIN;
+    server_name ${DOMAIN};
 
-    # Health check
     location = / {
         return 200 'SnowClash Server OK';
         add_header Content-Type text/plain;
     }
 
-    # API endpoints
     location /api {
         proxy_pass http://snowclash_backend;
         proxy_http_version 1.1;
@@ -327,7 +327,6 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
-    # Colyseus matchmake
     location /matchmake {
         proxy_pass http://snowclash_backend;
         proxy_http_version 1.1;
@@ -340,7 +339,6 @@ server {
         proxy_send_timeout 86400s;
     }
 
-    # WebSocket connections (Colyseus room IDs - supports /roomId/odS format)
     location ~ ^/[a-zA-Z0-9_/-]+\$ {
         proxy_pass http://snowclash_backend;
         proxy_http_version 1.1;
@@ -355,311 +353,102 @@ server {
 }
 EOF
 
-# Test Nginx configuration
-sudo nginx -t
+sudo nginx -t && sudo systemctl reload nginx
+log_success "Nginx configured"
 
-# Reload Nginx
-sudo systemctl reload nginx
-
-log_success "Nginx HTTP configured"
-
-# ============================================
-# 8. Obtain SSL Certificate
-# ============================================
-log_info "Obtaining SSL certificate from Let's Encrypt..."
+# -----------------------------------------------------------------------------
+# 9. Obtain SSL Certificate
+# -----------------------------------------------------------------------------
+log_info "Obtaining SSL certificate..."
 
 sudo certbot --nginx \
-  -d "$DOMAIN" \
-  --non-interactive \
-  --agree-tos \
-  --email "$EMAIL" \
-  --redirect
+    -d "$DOMAIN" \
+    --non-interactive \
+    --agree-tos \
+    --email "$EMAIL" \
+    --redirect
 
-log_success "SSL certificate obtained"
-
-# ============================================
-# 9. Update Nginx for HTTPS with http2
-# ============================================
-log_info "Updating Nginx configuration for HTTP/2..."
-
-# Fix http2 directive for newer Nginx versions
+# Enable HTTP/2
 sudo sed -i 's/listen 443 ssl;/listen 443 ssl;\n    http2 on;/g' /etc/nginx/conf.d/snowclash.conf
-
-# Test and reload Nginx
 sudo nginx -t && sudo systemctl reload nginx
 
-log_success "Nginx HTTPS configured"
+log_success "SSL configured"
 
-# ============================================
-# 10. Setup Auto-renewal for SSL
-# ============================================
-log_info "Setting up automatic SSL certificate renewal..."
+# -----------------------------------------------------------------------------
+# 10. Setup SSL Auto-renewal
+# -----------------------------------------------------------------------------
+log_info "Setting up SSL auto-renewal..."
 
-# Create renewal hook to reload nginx
-sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh > /dev/null <<EOF
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh > /dev/null <<'EOF'
 #!/bin/bash
 systemctl reload nginx
 EOF
 
 sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-
-# Test renewal (dry run)
 sudo certbot renew --dry-run
-
-# Certbot automatically adds a systemd timer, verify it's active
 sudo systemctl enable certbot-renew.timer
 sudo systemctl start certbot-renew.timer
 
-log_success "Auto-renewal configured"
+log_success "SSL auto-renewal configured"
 
-# ============================================
-# 11. Create Environment File
-# ============================================
-log_info "Configuring environment file..."
+# -----------------------------------------------------------------------------
+# 11. Start Docker Container
+# -----------------------------------------------------------------------------
+log_info "Starting container..."
 
-# Combine server domain and client URL for CORS
-ALLOWED_ORIGINS="https://$DOMAIN,$CLIENT_URL"
+sg docker -c "docker stop $CONTAINER_NAME" 2>/dev/null || sudo docker stop "$CONTAINER_NAME" 2>/dev/null || true
+sg docker -c "docker rm $CONTAINER_NAME" 2>/dev/null || sudo docker rm "$CONTAINER_NAME" 2>/dev/null || true
 
-cat > "$INSTALL_DIR/.env" <<EOF
-# SnowClash Docker Production Environment
-NODE_ENV=production
-PORT=${APP_PORT}
-ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-SERVER_URL=${DOMAIN}
-CLIENT_URL=${CLIENT_URL}
-DOCKER_IMAGE=${DOCKER_IMAGE}
-DOCKER_TAG=${SELECTED_VERSION}
-EOF
-
-log_success "Environment file configured"
-
-# ============================================
-# 12. Start Docker Container
-# ============================================
-log_info "Starting SnowClash Docker container..."
-
-# Stop existing container if running
-sg docker -c "docker stop $CONTAINER_NAME 2>/dev/null || true"
-sg docker -c "docker rm $CONTAINER_NAME 2>/dev/null || true"
-
-# Run container
 sg docker -c "docker run -d \
-  --name $CONTAINER_NAME \
-  --restart unless-stopped \
-  -p 127.0.0.1:${APP_PORT}:${APP_PORT} \
-  -e NODE_ENV=production \
-  -e PORT=${APP_PORT} \
-  -e ALLOWED_ORIGINS='${ALLOWED_ORIGINS}' \
-  ${DOCKER_IMAGE}:${SELECTED_VERSION}"
+    --name $CONTAINER_NAME \
+    --restart unless-stopped \
+    -p 127.0.0.1:${APP_PORT}:${APP_PORT} \
+    --env-file $INSTALL_DIR/.env \
+    $image" 2>/dev/null || \
+sudo docker run -d \
+    --name "$CONTAINER_NAME" \
+    --restart unless-stopped \
+    -p "127.0.0.1:${APP_PORT}:${APP_PORT}" \
+    --env-file "$INSTALL_DIR/.env" \
+    "$image"
 
-log_success "SnowClash Docker container started"
+log_success "Container started"
 
-# ============================================
-# 13. Configure Firewall (if enabled)
-# ============================================
-log_info "Checking firewall settings..."
-
-if command -v firewall-cmd &> /dev/null; then
-  if systemctl is-active --quiet firewalld; then
+# -----------------------------------------------------------------------------
+# 12. Configure Firewall
+# -----------------------------------------------------------------------------
+if command -v firewall-cmd &>/dev/null && systemctl is-active --quiet firewalld; then
+    log_info "Configuring firewall..."
     sudo firewall-cmd --permanent --add-service=http
     sudo firewall-cmd --permanent --add-service=https
     sudo firewall-cmd --reload
     log_success "Firewall configured"
-  fi
 fi
 
-# ============================================
-# 14. Create Management Scripts
-# ============================================
-log_info "Creating management scripts..."
-
-# Start script
-cat > "$INSTALL_DIR/start.sh" <<EOF
-#!/bin/bash
-source $INSTALL_DIR/.env
-sudo docker start $CONTAINER_NAME 2>/dev/null || \
-sudo docker run -d \
-  --name $CONTAINER_NAME \
-  --restart unless-stopped \
-  -p 127.0.0.1:\${PORT}:\${PORT} \
-  -e NODE_ENV=production \
-  -e PORT=\${PORT} \
-  -e ALLOWED_ORIGINS="\${ALLOWED_ORIGINS}" \
-  \${REDIS_URL:+-e REDIS_URL="\${REDIS_URL}"} \
-  \${DOCKER_IMAGE}:\${DOCKER_TAG}
-EOF
-
-# Stop script
-cat > "$INSTALL_DIR/stop.sh" <<EOF
-#!/bin/bash
-sudo docker stop $CONTAINER_NAME
-EOF
-
-# Restart script
-cat > "$INSTALL_DIR/restart.sh" <<EOF
-#!/bin/bash
-sudo docker restart $CONTAINER_NAME
-EOF
-
-# Update script (with version selection from GitHub releases)
-cat > "$INSTALL_DIR/update.sh" <<'SCRIPT'
-#!/bin/bash
-cd /home/ec2-user/SnowClash
-
-# Colors
-BLUE='\033[0;34m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-source .env
-
-DOCKER_IMAGE="${DOCKER_IMAGE:-ghcr.io/nalbam/snowclash}"
-CONTAINER_NAME="snowclash"
-GITHUB_REPO="nalbam/SnowClash"
-
-# Detect Docker command (with or without sudo)
-DOCKER_CMD="docker"
-if ! docker ps &>/dev/null; then
-  if sudo docker ps &>/dev/null; then
-    DOCKER_CMD="sudo docker"
-  fi
-fi
-
-echo -e "${BLUE}[INFO]${NC} Fetching available versions from GitHub releases..."
-
-# Get release tags from GitHub API (public, no auth required)
-tags=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases" 2>/dev/null | \
-  grep -o '"tag_name": "[^"]*"' | sed 's/"tag_name": "//;s/"//' | head -10 || echo "")
-
-if [ -z "$tags" ]; then
-  echo -e "${YELLOW}[WARN]${NC} Could not fetch releases automatically."
-  echo ""
-  echo "Enter version to deploy (e.g., 1.0.1, latest):"
-  read -p "Version [latest]: " SELECTED_VERSION
-  SELECTED_VERSION=${SELECTED_VERSION:-latest}
-  # Remove 'v' prefix if present
-  SELECTED_VERSION="${SELECTED_VERSION#v}"
-else
-  echo ""
-  echo "Available versions:"
-  echo "  0) latest"
-
-  i=1
-  while IFS= read -r tag; do
-    [ -z "$tag" ] && continue
-    echo "  $i) $tag"
-    i=$((i + 1))
-  done <<< "$tags"
-
-  echo ""
-  read -p "Select version [1]: " VERSION_CHOICE
-  VERSION_CHOICE=${VERSION_CHOICE:-1}
-
-  if [ "$VERSION_CHOICE" = "0" ]; then
-    SELECTED_VERSION="latest"
-  else
-    SELECTED_VERSION=$(echo "$tags" | sed -n "${VERSION_CHOICE}p")
-    if [ -z "$SELECTED_VERSION" ]; then
-      SELECTED_VERSION=$(echo "$tags" | head -1)
-    fi
-  fi
-  # Remove 'v' prefix if present (Docker tags don't have 'v' prefix)
-  SELECTED_VERSION="${SELECTED_VERSION#v}"
-fi
-
-echo -e "${BLUE}[INFO]${NC} Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
-$DOCKER_CMD pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
-
-echo -e "${BLUE}[INFO]${NC} Stopping existing container..."
-$DOCKER_CMD stop "$CONTAINER_NAME" 2>/dev/null || true
-$DOCKER_CMD rm "$CONTAINER_NAME" 2>/dev/null || true
-
-echo -e "${BLUE}[INFO]${NC} Starting new container..."
-$DOCKER_CMD run -d \
-  --name "$CONTAINER_NAME" \
-  --restart unless-stopped \
-  -p 127.0.0.1:${PORT}:${PORT} \
-  -e NODE_ENV=production \
-  -e PORT=${PORT} \
-  -e ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
-  ${REDIS_URL:+-e REDIS_URL="${REDIS_URL}"} \
-  "${DOCKER_IMAGE}:${SELECTED_VERSION}"
-
-# Update version in .env
-sed -i "s/^DOCKER_TAG=.*/DOCKER_TAG=${SELECTED_VERSION}/" .env 2>/dev/null || \
-  echo "DOCKER_TAG=${SELECTED_VERSION}" >> .env
-
-echo ""
-echo -e "${GREEN}[SUCCESS]${NC} Update completed!"
-echo "  Deployed version: $SELECTED_VERSION"
-SCRIPT
-
-# Logs script
-cat > "$INSTALL_DIR/logs.sh" <<EOF
-#!/bin/bash
-sudo docker logs -f $CONTAINER_NAME
-EOF
-
-# Status script
-cat > "$INSTALL_DIR/status.sh" <<EOF
-#!/bin/bash
-echo "=== Docker Container Status ==="
-sudo docker ps -a --filter "name=$CONTAINER_NAME"
-echo ""
-echo "=== Container Logs (last 20 lines) ==="
-sudo docker logs --tail 20 $CONTAINER_NAME
-echo ""
-echo "=== Nginx Status ==="
-sudo systemctl status nginx --no-pager
-echo ""
-echo "=== SSL Certificate ==="
-sudo certbot certificates
-EOF
-
-# Cleanup script (remove old images)
-cat > "$INSTALL_DIR/cleanup.sh" <<EOF
-#!/bin/bash
-echo "Removing unused Docker images..."
-sudo docker image prune -af
-echo "Done!"
-EOF
-
-chmod +x "$INSTALL_DIR"/*.sh
-
-log_success "Management scripts created"
-
-# ============================================
-# Complete!
-# ============================================
+# -----------------------------------------------------------------------------
+# Complete
+# -----------------------------------------------------------------------------
 echo ""
 echo "=============================================="
-echo -e "${GREEN}  Docker Deployment Complete!${NC}"
+echo -e "${GREEN}  Deployment Complete!${NC}"
 echo "=============================================="
 echo ""
-echo "  Deployed version: $SELECTED_VERSION"
+echo "  Version: $version"
+echo "  URL:     https://$DOMAIN"
 echo ""
-echo "  Your game is available at:"
-echo -e "  ${BLUE}https://$DOMAIN${NC}"
-echo ""
-echo "  Management commands:"
-echo "    ./start.sh    - Start the container"
-echo "    ./stop.sh     - Stop the container"
-echo "    ./restart.sh  - Restart the container"
-echo "    ./update.sh   - Update to new version"
-echo "    ./logs.sh     - View container logs"
+echo "  Management scripts (in ~/SnowClash):"
+echo "    ./start.sh    - Start container"
+echo "    ./stop.sh     - Stop container"
+echo "    ./restart.sh  - Restart container"
+echo "    ./update.sh   - Update version"
+echo "    ./logs.sh     - View logs"
 echo "    ./status.sh   - Check status"
-echo "    ./cleanup.sh  - Remove old Docker images"
 echo ""
 echo "  Docker commands:"
-echo "    docker ps              - Check container status"
-echo "    docker logs snowclash  - View logs"
-echo "    docker stats snowclash - Monitor resources"
+echo "    docker ps              - Status"
+echo "    docker logs snowclash  - Logs"
+echo "    docker stats snowclash - Resources"
 echo ""
-echo "  SSL auto-renewal is configured."
-echo "  Certificates will renew automatically."
-echo ""
-echo "  NOTE: You may need to log out and back in"
-echo "        for docker group membership to take effect."
+echo "  Note: Log out and back in for docker group"
 echo ""
 echo "=============================================="
