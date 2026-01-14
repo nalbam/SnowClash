@@ -53,6 +53,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Update package.json version
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          echo "Updating package.json version to $VERSION"
+          npm version $VERSION --no-git-tag-version
+
       - name: Build client
         env:
           SERVER_URL: ${{ github.event.inputs.server_url || vars.SERVER_URL || 'localhost:2567' }}
@@ -92,6 +98,18 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Update package.json version
+        run: |
+          VERSION=${{ steps.meta.outputs.version }}
+          echo "Updating package.json version to $VERSION"
+          npm version $VERSION --no-git-tag-version --allow-same-version
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
