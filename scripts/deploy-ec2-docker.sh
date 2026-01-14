@@ -105,27 +105,53 @@ echo ""
 # Installation directory (for config files)
 INSTALL_DIR="/home/ec2-user/SnowClash"
 
-# Detect if this is an update or fresh install
-UPDATE_MODE=false
-if [ -f "$INSTALL_DIR/.env" ] && docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
-  UPDATE_MODE=true
-  log_info "Existing Docker installation detected."
-  echo ""
-  echo "What would you like to do?"
-  echo "  1) Update game to new version (quick)"
-  echo "  2) Full reinstall (reconfigure everything)"
-  echo ""
-  read -p "Choose option (1/2) [1]: " INSTALL_MODE
-  INSTALL_MODE=${INSTALL_MODE:-1}
+# ============================================
+# Detect if server is already running → Quick Update
+# ============================================
+if [ -f "$INSTALL_DIR/.env" ] && docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
+  log_info "Server is running. Updating to new version..."
 
-  if [ "$INSTALL_MODE" = "1" ]; then
-    UPDATE_MODE=true
-    log_info "Update mode selected"
-  else
-    UPDATE_MODE=false
-    log_info "Full reinstall mode selected"
-  fi
+  # Load environment
+  source "$INSTALL_DIR/.env"
+
+  # Select version
+  select_version
+
+  # Pull and restart container
+  log_info "Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
+  docker pull "${DOCKER_IMAGE}:${SELECTED_VERSION}"
+
+  log_info "Restarting container with new version..."
+  docker stop "$CONTAINER_NAME" 2>/dev/null || true
+  docker rm "$CONTAINER_NAME" 2>/dev/null || true
+
+  docker run -d \
+    --name "$CONTAINER_NAME" \
+    --restart unless-stopped \
+    -p 127.0.0.1:${PORT}:${PORT} \
+    -e NODE_ENV=production \
+    -e PORT=${PORT} \
+    -e ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
+    ${REDIS_URL:+-e REDIS_URL="${REDIS_URL}"} \
+    "${DOCKER_IMAGE}:${SELECTED_VERSION}"
+
+  # Update version in .env
+  sed -i "s/^DOCKER_TAG=.*/DOCKER_TAG=${SELECTED_VERSION}/" "$INSTALL_DIR/.env"
+
+  log_success "Update completed!"
+  echo ""
+  echo "  Deployed version: ${SELECTED_VERSION}"
+  echo "  Server: https://${SERVER_URL}"
+  echo ""
+  echo "  Check: docker ps | docker logs $CONTAINER_NAME"
+  echo ""
+  exit 0
 fi
+
+# ============================================
+# Fresh Installation
+# ============================================
+log_info "No running server detected. Starting fresh installation..."
 
 # Load defaults from .env if exists
 DEFAULT_DOMAIN=""
@@ -135,61 +161,47 @@ if [ -f "$INSTALL_DIR/.env" ]; then
   DEFAULT_CLIENT_URL=$(grep -E "^CLIENT_URL=" "$INSTALL_DIR/.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" | xargs)
 fi
 
-# Skip configuration prompts in update mode
-if [ "$UPDATE_MODE" = true ]; then
-  DOMAIN="$DEFAULT_DOMAIN"
-  CLIENT_URL="$DEFAULT_CLIENT_URL"
-
-  if [ -z "$DOMAIN" ]; then
-    log_error "Cannot determine domain from existing configuration!"
-    exit 1
-  fi
-
-  log_info "Using existing server domain: $DOMAIN"
-  [ -n "$CLIENT_URL" ] && log_info "Using existing client URL: $CLIENT_URL"
+# Get server domain
+if [ -n "$DEFAULT_DOMAIN" ]; then
+  read -p "Enter your server domain [$DEFAULT_DOMAIN]: " DOMAIN
+  DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
 else
-  # Get server domain for full reinstall
-  if [ -n "$DEFAULT_DOMAIN" ]; then
-    read -p "Enter your server domain [$DEFAULT_DOMAIN]: " DOMAIN
-    DOMAIN=${DOMAIN:-$DEFAULT_DOMAIN}
-  else
-    read -p "Enter your server domain (e.g., game.example.com): " DOMAIN
-  fi
+  read -p "Enter your server domain (e.g., game.example.com): " DOMAIN
+fi
 
-  if [ -z "$DOMAIN" ]; then
-    log_error "Domain name is required!"
-    exit 1
-  fi
+if [ -z "$DOMAIN" ]; then
+  log_error "Domain name is required!"
+  exit 1
+fi
 
-  # Get client URL (GitHub Pages or custom domain)
-  DEFAULT_CLIENT_URL=${DEFAULT_CLIENT_URL:-"https://nalbam.github.io"}
-  read -p "Enter your client URL [$DEFAULT_CLIENT_URL]: " CLIENT_URL
-  CLIENT_URL=${CLIENT_URL:-$DEFAULT_CLIENT_URL}
+# Get client URL (GitHub Pages or custom domain)
+DEFAULT_CLIENT_URL=${DEFAULT_CLIENT_URL:-"https://nalbam.github.io"}
+read -p "Enter your client URL [$DEFAULT_CLIENT_URL]: " CLIENT_URL
+CLIENT_URL=${CLIENT_URL:-$DEFAULT_CLIENT_URL}
 
-  # Get email for Let's Encrypt (default: admin@domain)
-  DEFAULT_EMAIL="admin@$DOMAIN"
-  read -p "Enter your email for Let's Encrypt [$DEFAULT_EMAIL]: " EMAIL
-  EMAIL=${EMAIL:-$DEFAULT_EMAIL}
+# Get email for Let's Encrypt
+DEFAULT_EMAIL="admin@$DOMAIN"
+read -p "Enter your email for Let's Encrypt [$DEFAULT_EMAIL]: " EMAIL
+EMAIL=${EMAIL:-$DEFAULT_EMAIL}
 
-  if [ -z "$EMAIL" ]; then
-    log_error "Email is required for Let's Encrypt!"
-    exit 1
-  fi
+if [ -z "$EMAIL" ]; then
+  log_error "Email is required for Let's Encrypt!"
+  exit 1
+fi
 
-  # Confirm settings
-  echo ""
-  echo "=============================================="
-  echo "  Server Domain: $DOMAIN"
-  echo "  Client URL:    $CLIENT_URL"
-  echo "  Email:         $EMAIL"
-  echo "=============================================="
-  echo ""
-  read -p "Continue with these settings? (Y/n): " CONFIRM
-  CONFIRM=${CONFIRM:-Y}
-  if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
-    log_warn "Deployment cancelled."
-    exit 0
-  fi
+# Confirm settings
+echo ""
+echo "=============================================="
+echo "  Server Domain: $DOMAIN"
+echo "  Client URL:    $CLIENT_URL"
+echo "  Email:         $EMAIL"
+echo "=============================================="
+echo ""
+read -p "Continue with these settings? (Y/n): " CONFIRM
+CONFIRM=${CONFIRM:-Y}
+if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
+  log_warn "Deployment cancelled."
+  exit 0
 fi
 
 log_info "Starting deployment..."
@@ -212,77 +224,6 @@ install_docker_if_needed() {
     DOCKER_CMD=""
   fi
 }
-
-# ============================================
-# QUICK UPDATE MODE (Docker)
-# ============================================
-if [ "$UPDATE_MODE" = true ]; then
-  log_info "Quick update mode: Updating Docker container..."
-
-  # Check Docker installation
-  install_docker_if_needed
-
-  # Select version
-  select_version
-
-  # Load environment from .env
-  source "$INSTALL_DIR/.env"
-
-  # Define docker run function based on whether we need sg
-  run_docker() {
-    if [ -n "$DOCKER_CMD" ]; then
-      sg docker -c "$*"
-    else
-      eval "$*"
-    fi
-  }
-
-  log_info "Pulling Docker image: ${DOCKER_IMAGE}:${SELECTED_VERSION}..."
-  run_docker "docker pull '${DOCKER_IMAGE}:${SELECTED_VERSION}'"
-
-  log_info "Stopping existing container..."
-  run_docker "docker stop '$CONTAINER_NAME'" 2>/dev/null || true
-  run_docker "docker rm '$CONTAINER_NAME'" 2>/dev/null || true
-
-  log_info "Starting new container..."
-  run_docker "docker run -d \
-    --name '$CONTAINER_NAME' \
-    --restart unless-stopped \
-    -p 127.0.0.1:${APP_PORT}:${APP_PORT} \
-    -e NODE_ENV=production \
-    -e PORT=${APP_PORT} \
-    -e ALLOWED_ORIGINS='${ALLOWED_ORIGINS}' \
-    ${REDIS_URL:+-e REDIS_URL='${REDIS_URL}'} \
-    '${DOCKER_IMAGE}:${SELECTED_VERSION}'"
-
-  # Update version in .env
-  sed -i "s/^DOCKER_TAG=.*/DOCKER_TAG=${SELECTED_VERSION}/" "$INSTALL_DIR/.env" 2>/dev/null || \
-    echo "DOCKER_TAG=${SELECTED_VERSION}" >> "$INSTALL_DIR/.env"
-
-  log_success "Update completed!"
-
-  echo ""
-  echo "=============================================="
-  echo -e "${GREEN}  Update Complete!${NC}"
-  echo "=============================================="
-  echo ""
-  echo "  Deployed version: $SELECTED_VERSION"
-  echo ""
-  echo "  Your game is available at:"
-  echo -e "  ${BLUE}https://$DOMAIN${NC}"
-  echo ""
-  echo "  Check status:"
-  echo "    docker ps"
-  echo "    docker logs $CONTAINER_NAME"
-  echo ""
-  echo "=============================================="
-
-  exit 0
-fi
-
-# ============================================
-# FULL INSTALLATION MODE (Docker)
-# ============================================
 
 # ============================================
 # 1. System Update
