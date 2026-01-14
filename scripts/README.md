@@ -48,7 +48,6 @@ cd SnowClash
 | 스크립트 | 설명 |
 |---------|------|
 | `deploy-ec2.sh` | 전체 배포 또는 빠른 업데이트 |
-| `diagnose.sh` | 서버 상태 종합 진단 (10가지 항목 체크) |
 | `ec2-user-data.sh` | EC2 User Data용 초기 설정 |
 
 ## 배포 후 생성되는 관리 스크립트
@@ -135,27 +134,6 @@ cd ~/SnowClash/scripts
 ```
 
 ## 서버 상태 진단
-
-### 자동 진단 (추천)
-
-```bash
-cd ~/SnowClash/scripts
-./diagnose.sh
-```
-
-**체크 항목:**
-1. ✓ 시스템 리소스 (CPU, 메모리, 디스크)
-2. ✓ PM2 프로세스 상태
-3. ✓ Node.js 서버 포트 (2567)
-4. ✓ Nginx 서비스
-5. ✓ HTTP/HTTPS 포트 (80, 443)
-6. ✓ SSL 인증서 유효기간
-7. ✓ Public API 응답
-8. ✓ WebSocket 설정
-9. ✓ 애플리케이션 로그
-10. ✓ 방화벽 설정
-
-### 수동 진단
 
 **1. PM2 프로세스 확인**
 ```bash
