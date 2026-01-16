@@ -65,6 +65,12 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
   - `LobbyScene` - Team selection, ready system, player list
   - `GameScene` - Main gameplay, orchestrates systems and state synchronization
 
+### REST API Endpoints
+- `GET /api/nickname` - Generate random nickname
+- `GET /api/rooms` - List available rooms
+- `POST /api/rooms` - Create new room (body: `{ name: string }`)
+- `GET /api/version` - Get server version (response: `{ version: string }`)
+
 ### Communication Flow
 1. Client fetches nickname via REST API (`GET /api/nickname`)
 2. Client fetches room list via REST API (`GET /api/rooms`)
@@ -112,7 +118,12 @@ All game constants are defined in `src/shared/constants.ts` and shared between s
 - `MOBILE_CONTROLLER_HEIGHT`: 200px (mobile virtual controller area)
 - `PLAYABLE_AREA_TOP`: 70px (calculated: UI_HEADER_HEIGHT)
 - `PLAYABLE_AREA_BOTTOM`: 730px (calculated: MAP_SIZE - UI_FOOTER_HEIGHT)
+- `PLAYABLE_AREA_HEIGHT`: 660px (calculated: PLAYABLE_AREA_BOTTOM - PLAYABLE_AREA_TOP)
 - `PLAYER_SPACING`: 110px (distance between players in lobby)
+
+**Room Limits (defined in GameRoom):**
+- `MAX_PLAYERS`: 6 (3v3 teams)
+- `MAX_NICKNAME_LENGTH`: 20 characters
 
 ## Key Game Mechanics
 

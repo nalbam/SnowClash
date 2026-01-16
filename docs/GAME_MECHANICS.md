@@ -87,7 +87,12 @@ SnowClash는 **3v3 팀 기반 눈싸움 게임**입니다.
 | `UI_HEADER_HEIGHT` | 70 | 픽셀 | 상단 헤더 높이 |
 | `UI_FOOTER_HEIGHT` | 70 | 픽셀 | 하단 푸터 높이 |
 | `MOBILE_CONTROLLER_HEIGHT` | 200 | 픽셀 | 모바일 컨트롤러 영역 높이 |
+| `PLAYABLE_AREA_TOP` | 70 | 픽셀 | 플레이 영역 상단 (UI_HEADER_HEIGHT) |
+| `PLAYABLE_AREA_BOTTOM` | 730 | 픽셀 | 플레이 영역 하단 (MAP_SIZE - UI_FOOTER_HEIGHT) |
+| `PLAYABLE_AREA_HEIGHT` | 660 | 픽셀 | 플레이 영역 높이 |
 | `PLAYER_SPACING` | 110 | 픽셀 | 로비에서 플레이어 간 거리 |
+| `MAX_PLAYERS` | 6 | 명 | 룸 최대 플레이어 수 (3v3) |
+| `MAX_NICKNAME_LENGTH` | 20 | 문자 | 닉네임 최대 길이 |
 
 ### 상수 위치
 
@@ -134,7 +139,12 @@ export const UI_FOOTER_HEIGHT = 70;
 export const MOBILE_CONTROLLER_HEIGHT = 200;
 export const PLAYABLE_AREA_TOP = UI_HEADER_HEIGHT;
 export const PLAYABLE_AREA_BOTTOM = MAP_SIZE - UI_FOOTER_HEIGHT;
+export const PLAYABLE_AREA_HEIGHT = PLAYABLE_AREA_BOTTOM - PLAYABLE_AREA_TOP;
 export const PLAYER_SPACING = 110;
+
+// Room limits (defined in GameRoom.ts)
+// MAX_PLAYERS = 6
+// MAX_NICKNAME_LENGTH = 20
 ```
 
 ---
