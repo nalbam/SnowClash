@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Room } from 'colyseus.js';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
+import { generateEnvironmentTextures, createEnvironmentDecorations } from '../assets/EnvironmentAssets';
 import { SnowballSystem } from '../systems/SnowballSystem';
 import { InputSystem } from '../systems/InputSystem';
 import { PlayerRenderSystem } from '../systems/PlayerRenderSystem';
@@ -71,6 +72,7 @@ export class GameScene extends Phaser.Scene {
     // Generate pixel art textures
     generateCharacterTextures(this);
     createCharacterAnimations(this);
+    generateEnvironmentTextures(this);
 
     // Don't draw map yet - wait for team info
 
@@ -182,6 +184,7 @@ export class GameScene extends Phaser.Scene {
 
   private drawMap() {
     const graphics = this.add.graphics();
+    graphics.setDepth(0);
 
     // Draw grid background
     graphics.fillStyle(0xffffff, 1);
@@ -211,6 +214,9 @@ export class GameScene extends Phaser.Scene {
     graphics.lineTo(MAP_SIZE, MAP_SIZE);
     graphics.closePath();
     graphics.fillPath();
+
+    // Add environment decorations (trees, rocks, bushes) - behind all game elements
+    createEnvironmentDecorations(this, MAP_SIZE);
   }
 
   private setupRoomHandlers() {

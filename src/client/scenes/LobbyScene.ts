@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Room } from 'colyseus.js';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
+import { generateEnvironmentTextures, createEnvironmentDecorations } from '../assets/EnvironmentAssets';
 import {
   MAP_SIZE,
   PLAYABLE_AREA_TOP,
@@ -61,6 +62,10 @@ export class LobbyScene extends Phaser.Scene {
     // Generate pixel art textures
     generateCharacterTextures(this);
     createCharacterAnimations(this);
+    generateEnvironmentTextures(this);
+
+    // Add environment decorations - behind all UI elements
+    createEnvironmentDecorations(this, MAP_SIZE);
 
     this.createUI();
     this.setupRoomHandlers();
