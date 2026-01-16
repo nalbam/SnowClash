@@ -281,13 +281,32 @@ export const config = {
 };
 ```
 
-### 캐릭터 에셋 (`src/client/assets/PixelCharacter.ts`)
+### 에셋 (`src/client/assets/`)
+
+#### PixelCharacter.ts
 
 픽셀 아트 캐릭터 텍스처와 애니메이션을 생성합니다.
 
 - 팀별 캐릭터 텍스처 (red_idle, blue_idle, red_walk, blue_walk, red_stunned, blue_stunned)
 - 눈덩이 텍스처 (일반, 차징)
+- 만세 애니메이션 (cheer1, cheer2)
 - 걷기 애니메이션 정의
+
+#### EnvironmentAssets.ts
+
+맵 장식용 픽셀 아트 에셋을 생성합니다.
+
+| 함수 | 역할 |
+|------|------|
+| `generateEnvironmentTextures()` | 환경 장식 텍스처 생성 (나무, 바위, 수풀) |
+| `createEnvironmentDecorations()` | 게임 맵 테두리 및 대각선 경계에 장식 배치 |
+| `createMenuDecorations()` | 메인 메뉴 테두리에 나무 장식 배치 |
+
+**에셋 타입:**
+- 나무: `tree_small` (24x32), `tree_tiny` (16x24)
+- 바위: `rock_medium` (16x16), `rock_small` (12x12), `rock_tiny` (8x8)
+- 수풀: `bush_medium` (16x12), `bush_small` (12x10)
+- 기타: `snow_rock` (10x8)
 
 ### MainMenuScene (`src/client/scenes/MainMenuScene.ts`)
 
@@ -747,7 +766,8 @@ SnowClash/
 │   │   ├── config.ts                # 서버 연결 설정
 │   │   ├── index.html               # HTML 템플릿
 │   │   ├── assets/
-│   │   │   └── PixelCharacter.ts    # 픽셀 아트 캐릭터 생성
+│   │   │   ├── PixelCharacter.ts    # 픽셀 아트 캐릭터 생성
+│   │   │   └── EnvironmentAssets.ts # 환경 장식 (나무, 바위, 수풀)
 │   │   ├── systems/                 # 게임 시스템 모듈
 │   │   │   ├── InputSystem.ts       # 입력 처리 (키보드, 마우스, 터치, 차징)
 │   │   │   ├── PlayerRenderSystem.ts # 플레이어 렌더링 및 애니메이션
