@@ -4,9 +4,7 @@ import { generateCharacterTextures, createCharacterAnimations } from '../assets/
 import { generateEnvironmentTextures, createEnvironmentDecorations } from '../assets/EnvironmentAssets';
 import {
   MAP_SIZE,
-  PLAYABLE_AREA_TOP,
   PLAYABLE_AREA_BOTTOM,
-  PLAYABLE_AREA_HEIGHT,
   PLAYER_SPACING
 } from '../../shared/constants';
 
@@ -103,20 +101,16 @@ export class LobbyScene extends Phaser.Scene {
     this.redZone.setDepth(-100);
     this.blueZone.setDepth(-100);
 
-    // Draw diagonal line only
-    const topY = PLAYABLE_AREA_TOP;
-    const bottomY = PLAYABLE_AREA_BOTTOM;
-    const height = PLAYABLE_AREA_HEIGHT;
-
+    // Draw diagonal line (full map, same as GameScene)
     const line = this.add.graphics();
     line.lineStyle(2, 0xffffff, 0.5);
     line.beginPath();
-    line.moveTo(0, topY);
-    line.lineTo(MAP_SIZE, bottomY);
+    line.moveTo(0, 0);
+    line.lineTo(MAP_SIZE, MAP_SIZE);
     line.strokePath();
 
-    // Make entire playable area clickable for team selection
-    const playableArea = this.add.zone(MAP_SIZE / 2, topY + height / 2, MAP_SIZE, height);
+    // Make entire map clickable for team selection
+    const playableArea = this.add.zone(MAP_SIZE / 2, MAP_SIZE / 2, MAP_SIZE, MAP_SIZE);
     playableArea.setInteractive({ useHandCursor: true });
     playableArea.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       this.handleTeamClick(pointer.x, pointer.y);
@@ -182,19 +176,9 @@ export class LobbyScene extends Phaser.Scene {
     // Convert view coordinates to server coordinates
     const serverPos = this.toServerCoords(viewX, viewY);
 
-    // Check if click is within playable area
-    const topY = PLAYABLE_AREA_TOP;
-    const bottomY = PLAYABLE_AREA_BOTTOM;
-
-    if (serverPos.y < topY || serverPos.y > bottomY) {
-      return; // Outside playable area
-    }
-
     // Determine which side of the diagonal the click is on
-    // Diagonal line: y = topY + (bottomY - topY) * (x / MAP_SIZE)
-    const diagonalY = topY + (bottomY - topY) * (serverPos.x / MAP_SIZE);
-
-    if (serverPos.y < diagonalY) {
+    // Diagonal line: y = x (from top-left to bottom-right)
+    if (serverPos.y < serverPos.x) {
       // Above diagonal = Red team (in server coordinates)
       this.selectTeam('red');
     } else {
@@ -210,31 +194,29 @@ export class LobbyScene extends Phaser.Scene {
   private updateTeamUI() {
     if (!this.myTeam || !this.teamLabels || !this.redZone || !this.blueZone) return;
 
-    const topY = PLAYABLE_AREA_TOP;
-    const bottomY = PLAYABLE_AREA_BOTTOM;
-
     // Determine colors based on team
     const isRedTeam = this.myTeam === 'red';
     const bottomLeftColor = isRedTeam ? 0xff0000 : 0x0000ff;
     const topRightColor = isRedTeam ? 0x0000ff : 0xff0000;
 
-    // Redraw zones with correct colors
+    // Redraw zones with correct colors (full map, same as GameScene)
+    // Draw top-right territory (above the \ diagonal)
     this.redZone.clear();
     this.redZone.fillStyle(topRightColor, 0.03);
     this.redZone.beginPath();
-    this.redZone.moveTo(0, topY);
-    this.redZone.lineTo(MAP_SIZE, topY);
-    this.redZone.lineTo(MAP_SIZE, bottomY);
-    this.redZone.lineTo(0, topY);
+    this.redZone.moveTo(0, 0);
+    this.redZone.lineTo(MAP_SIZE, 0);
+    this.redZone.lineTo(MAP_SIZE, MAP_SIZE);
     this.redZone.closePath();
     this.redZone.fillPath();
 
+    // Draw bottom-left territory (below the \ diagonal)
     this.blueZone.clear();
     this.blueZone.fillStyle(bottomLeftColor, 0.03);
     this.blueZone.beginPath();
-    this.blueZone.moveTo(0, topY);
-    this.blueZone.lineTo(MAP_SIZE, bottomY);
-    this.blueZone.lineTo(0, bottomY);
+    this.blueZone.moveTo(0, 0);
+    this.blueZone.lineTo(0, MAP_SIZE);
+    this.blueZone.lineTo(MAP_SIZE, MAP_SIZE);
     this.blueZone.closePath();
     this.blueZone.fillPath();
 
