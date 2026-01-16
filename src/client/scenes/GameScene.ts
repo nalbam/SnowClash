@@ -195,7 +195,7 @@ export class GameScene extends Phaser.Scene {
     const topRightColor = isRedTeam ? 0x0000ff : 0xff0000;
 
     // Draw top-right territory (above the \ diagonal)
-    graphics.fillStyle(topRightColor, 0.1);
+    graphics.fillStyle(topRightColor, 0.03);
     graphics.beginPath();
     graphics.moveTo(0, 0);
     graphics.lineTo(MAP_SIZE, 0);
@@ -204,7 +204,7 @@ export class GameScene extends Phaser.Scene {
     graphics.fillPath();
 
     // Draw bottom-left territory (below the \ diagonal)
-    graphics.fillStyle(bottomLeftColor, 0.1);
+    graphics.fillStyle(bottomLeftColor, 0.03);
     graphics.beginPath();
     graphics.moveTo(0, 0);
     graphics.lineTo(0, MAP_SIZE);

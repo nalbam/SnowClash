@@ -213,7 +213,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // Redraw zones with correct colors
     this.redZone.clear();
-    this.redZone.fillStyle(topRightColor, 0.1);
+    this.redZone.fillStyle(topRightColor, 0.03);
     this.redZone.beginPath();
     this.redZone.moveTo(0, topY);
     this.redZone.lineTo(MAP_SIZE, topY);
@@ -223,7 +223,7 @@ export class LobbyScene extends Phaser.Scene {
     this.redZone.fillPath();
 
     this.blueZone.clear();
-    this.blueZone.fillStyle(bottomLeftColor, 0.1);
+    this.blueZone.fillStyle(bottomLeftColor, 0.03);
     this.blueZone.beginPath();
     this.blueZone.moveTo(0, topY);
     this.blueZone.lineTo(MAP_SIZE, bottomY);
