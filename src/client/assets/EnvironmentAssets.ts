@@ -354,3 +354,47 @@ export function createEnvironmentDecorations(scene: Phaser.Scene, mapSize: numbe
 
   return container;
 }
+
+/**
+ * 메인 메뉴용 장식물 배치 (테두리에 나무만)
+ */
+export function createMenuDecorations(scene: Phaser.Scene, mapSize: number): Phaser.GameObjects.Container {
+  const container = scene.add.container(0, 0);
+
+  const decorations: Array<{ x: number; y: number; type: AssetType; scale: number }> = [];
+
+  // 상단 테두리 (나무)
+  for (let x = 25; x < mapSize - 25; x += 45 + Math.random() * 25) {
+    const type = Math.random() > 0.4 ? 'tree_small' : 'tree_tiny';
+    decorations.push({ x, y: 18 + Math.random() * 12, type, scale: 0.9 + Math.random() * 0.2 });
+  }
+
+  // 하단 테두리 (나무)
+  for (let x = 25; x < mapSize - 25; x += 45 + Math.random() * 25) {
+    const type = Math.random() > 0.4 ? 'tree_small' : 'tree_tiny';
+    decorations.push({ x, y: mapSize - 15 - Math.random() * 12, type, scale: 0.9 + Math.random() * 0.2 });
+  }
+
+  // 왼쪽 테두리 (나무)
+  for (let y = 50; y < mapSize - 50; y += 55 + Math.random() * 25) {
+    const type = Math.random() > 0.5 ? 'tree_small' : 'tree_tiny';
+    decorations.push({ x: 12 + Math.random() * 12, y, type, scale: 0.9 + Math.random() * 0.2 });
+  }
+
+  // 오른쪽 테두리 (나무)
+  for (let y = 50; y < mapSize - 50; y += 55 + Math.random() * 25) {
+    const type = Math.random() > 0.5 ? 'tree_small' : 'tree_tiny';
+    decorations.push({ x: mapSize - 18 - Math.random() * 12, y, type, scale: 0.9 + Math.random() * 0.2 });
+  }
+
+  for (const deco of decorations) {
+    const sprite = scene.add.image(deco.x, deco.y, `env_${deco.type}`);
+    sprite.setScale(deco.scale);
+    sprite.setOrigin(0.5, 1);
+    container.add(sprite);
+  }
+
+  container.setDepth(-10);
+
+  return container;
+}

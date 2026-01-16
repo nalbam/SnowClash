@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Client, Room } from 'colyseus.js';
 import { config } from '../config';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
+import { generateEnvironmentTextures, createMenuDecorations } from '../assets/EnvironmentAssets';
 import { MAP_SIZE } from '../../shared/constants';
 
 interface RoomInfo {
@@ -30,6 +31,10 @@ export class MainMenuScene extends Phaser.Scene {
     // Generate pixel art textures
     generateCharacterTextures(this);
     createCharacterAnimations(this);
+    generateEnvironmentTextures(this);
+
+    // Add environment decorations - behind all UI elements (trees only for menu)
+    createMenuDecorations(this, MAP_SIZE);
 
     // Generate random nickname and fetch server version
     await Promise.all([
