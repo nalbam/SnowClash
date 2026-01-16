@@ -435,14 +435,12 @@ export class InputSystem {
 
   /**
    * Cancel pointer input (when keyboard is used)
+   * Note: Don't cancel charging here - let processSnowballInput() handle all charging state
+   * This only resets pointer state to prevent pointer-based movement when keyboard is used
    */
   private cancelPointerInput(): void {
     this.isPointerDown = false;
-    if (this.isCharging) {
-      this.isCharging = false;
-      if (this.chargeGauge) {
-        this.chargeGauge.clear();
-      }
-    }
+    // Charging is handled entirely by processSnowballInput()
+    // This ensures proper throw detection when Space is released while moving
   }
 }
