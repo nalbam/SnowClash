@@ -41,6 +41,7 @@ export class PlayerRenderSystem {
   private scene: Phaser.Scene;
   private players: Map<string, PlayerSpriteData> = new Map();
   private myTeam?: string;
+  private localPlayerMoving: boolean = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -51,6 +52,13 @@ export class PlayerRenderSystem {
    */
   public setMyTeam(team: string): void {
     this.myTeam = team;
+  }
+
+  /**
+   * Set local player's movement state (for animation during client prediction)
+   */
+  public setLocalPlayerMoving(isMoving: boolean): void {
+    this.localPlayerMoving = isMoving;
   }
 
   /**
@@ -119,7 +127,11 @@ export class PlayerRenderSystem {
     const team = state.team || 'red';
 
     // Check if player is moving
-    const isMoving = playerData.lastX !== state.x || playerData.lastY !== state.y;
+    // For local player, use the tracked movement state (from client prediction)
+    // For remote players, compare server positions
+    const isMoving = isLocalPlayer
+      ? this.localPlayerMoving
+      : (playerData.lastX !== state.x || playerData.lastY !== state.y);
 
     // Update position with interpolation
     this.updateSpritePosition(playerData, state, isLocalPlayer);
@@ -255,7 +267,8 @@ export class PlayerRenderSystem {
       // Walking animation
       sprite.setAlpha(1);
       const walkAnim = `${team}_walk`;
-      if (sprite.anims.currentAnim?.key !== walkAnim) {
+      // Check if walk animation is not playing (either different anim or stopped)
+      if (sprite.anims.currentAnim?.key !== walkAnim || !sprite.anims.isPlaying) {
         sprite.play(walkAnim);
       }
     } else {
@@ -264,7 +277,7 @@ export class PlayerRenderSystem {
       if (isWinningTeam) {
         // Cheer animation for winning team
         const cheerAnim = `${team}_cheer`;
-        if (sprite.anims.currentAnim?.key !== cheerAnim) {
+        if (sprite.anims.currentAnim?.key !== cheerAnim || !sprite.anims.isPlaying) {
           sprite.play(cheerAnim);
         }
       } else {

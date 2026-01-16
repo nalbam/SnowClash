@@ -125,6 +125,9 @@ export class GameScene extends Phaser.Scene {
     // Get input from input system
     const input = this.inputSystem.getInput(time, playerX, playerY);
 
+    // Update local player movement state for animation
+    this.playerRenderSystem.setLocalPlayerMoving(input.isMoving);
+
     // Apply client-side prediction for local player (smooth movement)
     if (input.isMoving && this.currentPlayer && playerPos) {
       // For client prediction, we need view coordinate directions
