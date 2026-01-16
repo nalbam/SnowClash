@@ -25,9 +25,13 @@ const PALETTE = {
   BLUE_DARK: 0x0D47A1,
   BLUE_LIGHT: 0x6AB7FF,
 
-  // 옷 (공통)
-  CLOTH_MAIN: 0xF5F5F5,
-  CLOTH_SHADOW: 0xCCCCCC,
+  // 옷 - Red 팀 (연한 빨강/핑크 계열)
+  RED_CLOTH_MAIN: 0xFFB4B4,
+  RED_CLOTH_SHADOW: 0xE89999,
+
+  // 옷 - Blue 팀 (연한 파랑 계열)
+  BLUE_CLOTH_MAIN: 0xB4D4FF,
+  BLUE_CLOTH_SHADOW: 0x99BBE8,
 
   // 스턴 상태
   STUN_OVERLAY: 0x666666,
@@ -480,8 +484,10 @@ function drawCharacter(
   isStunned: boolean
 ): void {
   const teamColors = team === 'red'
-    ? { main: PALETTE.RED_MAIN, dark: PALETTE.RED_DARK, light: PALETTE.RED_LIGHT }
-    : { main: PALETTE.BLUE_MAIN, dark: PALETTE.BLUE_DARK, light: PALETTE.BLUE_LIGHT };
+    ? { main: PALETTE.RED_MAIN, dark: PALETTE.RED_DARK, light: PALETTE.RED_LIGHT,
+        clothMain: PALETTE.RED_CLOTH_MAIN, clothShadow: PALETTE.RED_CLOTH_SHADOW }
+    : { main: PALETTE.BLUE_MAIN, dark: PALETTE.BLUE_DARK, light: PALETTE.BLUE_LIGHT,
+        clothMain: PALETTE.BLUE_CLOTH_MAIN, clothShadow: PALETTE.BLUE_CLOTH_SHADOW };
 
   for (let y = 0; y < 32; y++) {
     const row = pixelData[y];
@@ -500,8 +506,8 @@ function drawCharacter(
         case '7': color = PALETTE.WHITE; break; // 흰색 (눈 흰자)
         case '8': color = PALETTE.BROWN; break; // 갈색 (신발)
         case '9': color = PALETTE.PINK; break; // 핑크 (볼, 입술)
-        case 'A': color = PALETTE.CLOTH_MAIN; break; // 옷 메인
-        case 'B': color = PALETTE.CLOTH_SHADOW; break; // 옷 그림자
+        case 'A': color = teamColors.clothMain; break; // 옷 메인 (팀 색상)
+        case 'B': color = teamColors.clothShadow; break; // 옷 그림자 (팀 색상)
       }
 
       if (color !== null) {
