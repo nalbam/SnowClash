@@ -100,6 +100,8 @@ export class LobbyScene extends Phaser.Scene {
     // Initialize graphics objects (but don't draw zones yet - wait for team info)
     this.redZone = this.add.graphics();
     this.blueZone = this.add.graphics();
+    this.redZone.setDepth(-100);
+    this.blueZone.setDepth(-100);
 
     // Draw diagonal line only
     const topY = PLAYABLE_AREA_TOP;

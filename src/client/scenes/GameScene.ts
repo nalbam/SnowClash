@@ -184,7 +184,7 @@ export class GameScene extends Phaser.Scene {
 
   private drawMap() {
     const graphics = this.add.graphics();
-    graphics.setDepth(0);
+    graphics.setDepth(-100); // 가장 뒤에 배치
 
     // Draw grid background
     graphics.fillStyle(0xffffff, 1);
