@@ -99,18 +99,18 @@ export class MainMenuScene extends Phaser.Scene {
     const centerX = this.cameras.main.width / 2;
 
     // Title
-    this.add.text(centerX, 55, 'SnowClash', {
+    this.add.text(centerX, 70, 'SnowClash', {
       fontSize: '48px',
       color: '#333333',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Red team character (left of title)
-    const redCharacter = this.add.sprite(centerX - MAP_SIZE * 0.28, 55, 'character_red_idle');
+    const redCharacter = this.add.sprite(centerX - MAP_SIZE * 0.28, 70, 'character_red_idle');
     redCharacter.setScale(2);
     this.tweens.add({
       targets: redCharacter,
-      y: 50,
+      y: 65,
       duration: 800,
       yoyo: true,
       repeat: -1,
@@ -118,12 +118,12 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Blue team character (right of title)
-    const blueCharacter = this.add.sprite(centerX + MAP_SIZE * 0.28, 55, 'character_blue_idle');
+    const blueCharacter = this.add.sprite(centerX + MAP_SIZE * 0.28, 70, 'character_blue_idle');
     blueCharacter.setScale(2);
     blueCharacter.setFlipX(true); // Face toward center
     this.tweens.add({
       targets: blueCharacter,
-      y: 50,
+      y: 65,
       duration: 800,
       yoyo: true,
       repeat: -1,
@@ -196,9 +196,9 @@ export class MainMenuScene extends Phaser.Scene {
     // Room list container
     this.roomListContainer = this.add.container(0, 335);
 
-    // Version info at bottom (above tree line)
+    // Version info at bottom
     const versionText = `Client: v${config.clientVersion} | Server: v${this.serverVersion}`;
-    this.add.text(centerX, MAP_SIZE - UI_BORDER_MARGIN + 10, versionText, {
+    this.add.text(centerX, MAP_SIZE - 12, versionText, {
       fontSize: '10px',
       color: '#999999'
     }).setOrigin(0.5);
