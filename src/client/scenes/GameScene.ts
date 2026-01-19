@@ -44,6 +44,8 @@ export class GameScene extends Phaser.Scene {
     this.load.audio('throw', 'sounds/throw.mp3');
     this.load.audio('hit', 'sounds/hit.mp3');
     this.load.audio('stun', 'sounds/stun.mp3');
+    this.load.audio('victory', 'sounds/victory.mp3');
+    this.load.audio('defeat', 'sounds/defeat.mp3');
   }
 
   init(data: any) {
@@ -430,10 +432,18 @@ export class GameScene extends Phaser.Scene {
       // Player won
       message = 'You Win!';
       color = winner === 'red' ? '#ff0000' : '#0000ff';
+      // Play victory sound
+      if (this.soundsLoaded) {
+        this.sound.play('victory', { volume: 0.6 });
+      }
     } else {
       // Player lost
       message = 'You Lose!';
       color = '#666666';
+      // Play defeat sound
+      if (this.soundsLoaded) {
+        this.sound.play('defeat', { volume: 0.6 });
+      }
     }
 
     // Animation is handled by updatePlayer automatically
