@@ -233,7 +233,10 @@ describe('BotController', () => {
 
       expect(gameState.snowballs.size).toBe(0);
 
-      // First update - bot throws immediately (lastAttackTime initialized to 0)
+      // Set lastAttackTime to ensure bot will attack on first update
+      (botController as any).lastAttackTime.set(botId, currentTime - 2100);
+
+      // First update - bot should throw (more than BOT_ATTACK_INTERVAL has passed)
       botController.updateBots(currentTime);
       expect(gameState.snowballs.size).toBe(1);
 

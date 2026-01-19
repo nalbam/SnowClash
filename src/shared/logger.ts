@@ -61,6 +61,7 @@ export class Logger {
 export function createLogger(context: string): Logger {
   // Default to INFO level for browser, DEBUG for Node.js development
   // In browser environment, we can't access process.env at runtime
-  const minLevel = typeof window === 'undefined' ? LogLevel.DEBUG : LogLevel.INFO;
+  const isBrowser = typeof (globalThis as any).window !== 'undefined';
+  const minLevel = isBrowser ? LogLevel.INFO : LogLevel.DEBUG;
   return new Logger(context, minLevel);
 }

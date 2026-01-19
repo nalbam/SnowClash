@@ -60,23 +60,24 @@ export interface LobbySceneInitData {
 
 // Type guards
 export function isSetProfileMessage(msg: any): msg is SetProfileMessage {
-  return typeof msg === 'object' && typeof msg.nickname === 'string';
+  return msg !== null && typeof msg === 'object' && typeof msg.nickname === 'string';
 }
 
 export function isSelectTeamMessage(msg: any): msg is SelectTeamMessage {
-  return typeof msg === 'object' && (msg.team === 'red' || msg.team === 'blue');
+  return msg !== null && typeof msg === 'object' && (msg.team === 'red' || msg.team === 'blue');
 }
 
 export function isReadyMessage(msg: any): msg is ReadyMessage {
-  return typeof msg === 'object' && typeof msg.ready === 'boolean';
+  return msg !== null && typeof msg === 'object' && typeof msg.ready === 'boolean';
 }
 
 export function isMoveMessage(msg: any): msg is MoveMessage {
-  return typeof msg === 'object' &&
+  return msg !== null &&
+         typeof msg === 'object' &&
          typeof msg.x === 'number' &&
          typeof msg.y === 'number';
 }
 
 export function isThrowSnowballMessage(msg: any): msg is ThrowSnowballMessage {
-  return typeof msg === 'object' && typeof msg.chargeLevel === 'number';
+  return msg !== null && typeof msg === 'object' && typeof msg.chargeLevel === 'number';
 }

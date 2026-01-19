@@ -50,7 +50,7 @@ describe('GameRoom', () => {
 
       expect(state).toBeDefined();
       expect(state.mapSize).toBe(800);
-      expect(state.roomName).toBe('Test Room');
+      expect(state.roomName).toContain('Test Room #');
       expect(state.phase).toBe('lobby');
       expect(state.players.size).toBe(0);
       expect(state.snowballs.size).toBe(0);
@@ -61,7 +61,7 @@ describe('GameRoom', () => {
       newRoom.setMetadata = jest.fn();
       newRoom.onCreate({});
 
-      expect(newRoom.state.roomName).toBe('Game Room');
+      expect(newRoom.state.roomName).toContain('Game Room #');
 
       newRoom.onDispose();
     });
@@ -403,8 +403,13 @@ describe('GameRoom', () => {
   });
 
   describe('room metadata', () => {
-    it('should call setMetadata with room name', () => {
-      expect(room.setMetadata).toHaveBeenCalledWith({ roomName: 'Test Room' });
+    it('should call setMetadata with room name and phase', () => {
+      expect(room.setMetadata).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomName: expect.stringContaining('Test Room #'),
+          phase: 'lobby'
+        })
+      );
     });
   });
 
