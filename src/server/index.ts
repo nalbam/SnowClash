@@ -101,7 +101,8 @@ app.get('/api/rooms', async (req, res) => {
       roomId: room.roomId,
       roomName: room.metadata?.roomName || 'Game Room',
       playerCount: room.clients,
-      maxPlayers: 6
+      maxPlayers: 6,
+      phase: room.metadata?.phase || 'lobby'
     }));
     res.json(roomList);
   } catch (error) {
@@ -121,10 +122,11 @@ app.post('/api/rooms', roomCreateLimiter, async (req, res) => {
     // Sanitize room name
     roomName = roomName.replace(/[<>]/g, '').trim();
 
+    // Room number is generated in GameRoom.onCreate()
     const room = await matchMaker.createRoom('game_room', { roomName });
     res.json({
       roomId: room.roomId,
-      roomName: roomName
+      roomName: room.metadata?.roomName || roomName
     });
   } catch (error) {
     console.error('Error creating room:', error);

@@ -22,6 +22,9 @@ import {
 const MAX_PLAYERS = 6;
 const MAX_NICKNAME_LENGTH = 20;
 
+// Room number counter (starts from random base to avoid collisions after restart)
+let roomCounter = Math.floor(Math.random() * 1000);
+
 export class GameRoom extends Room<GameState> {
   private readyTimers: Map<string, NodeJS.Timeout> = new Map();
   private updateInterval?: NodeJS.Timeout;
@@ -30,11 +33,17 @@ export class GameRoom extends Room<GameState> {
   onCreate(options: any) {
     this.setState(new GameState());
     this.state.mapSize = MAP_SIZE;
-    this.state.roomName = options.roomName || 'Game Room';
+
+    // Generate unique room number
+    roomCounter++;
+    const roomNumber = String(roomCounter).padStart(4, '0');
+    const baseName = options.roomName || 'Game Room';
+    this.state.roomName = `${baseName} #${roomNumber}`;
+
     this.botController = new BotController(this.state);
 
     // Set metadata for room listing
-    this.setMetadata({ roomName: this.state.roomName });
+    this.setMetadata({ roomName: this.state.roomName, phase: this.state.phase });
 
     this.onMessage('setProfile', (client, message) => {
       const player = this.state.players.get(client.sessionId);
@@ -270,6 +279,7 @@ export class GameRoom extends Room<GameState> {
     }
 
     this.state.phase = 'playing';
+    this.setMetadata({ roomName: this.state.roomName, phase: this.state.phase });
 
     // Initialize all player positions (including bots)
     // Spawn randomly within team territory with margin from diagonal
@@ -382,6 +392,7 @@ export class GameRoom extends Room<GameState> {
   private endGame(winner: string) {
     this.state.phase = 'ended';
     this.state.winner = winner;
+    this.setMetadata({ roomName: this.state.roomName, phase: this.state.phase });
 
     this.broadcast('gameEnded', { winner });
 

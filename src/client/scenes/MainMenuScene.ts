@@ -10,6 +10,7 @@ interface RoomInfo {
   roomName: string;
   playerCount: number;
   maxPlayers: number;
+  phase: string;
 }
 
 export class MainMenuScene extends Phaser.Scene {
@@ -254,12 +255,16 @@ export class MainMenuScene extends Phaser.Scene {
       return;
     }
 
-    this.rooms.forEach((room, index) => {
+    // Filter out ended rooms
+    const activeRooms = this.rooms.filter(room => room.phase !== 'ended');
+
+    activeRooms.forEach((room, index) => {
       const y = index * 45;
+      const isJoinable = room.phase === 'lobby' && room.playerCount < room.maxPlayers;
 
       // Room background
       const bg = this.add.graphics();
-      bg.fillStyle(0xffffff, 0.8);
+      bg.fillStyle(isJoinable ? 0xffffff : 0xeeeeee, 0.8);
       bg.lineStyle(1, 0xcccccc, 1);
       bg.fillRoundedRect(20, y, MAP_SIZE - 40, 38, 8);
       bg.strokeRoundedRect(20, y, MAP_SIZE - 40, 38, 8);
@@ -267,28 +272,33 @@ export class MainMenuScene extends Phaser.Scene {
       // Room name
       const nameText = this.add.text(35, y + 10, room.roomName, {
         fontSize: '14px',
-        color: '#333333'
+        color: isJoinable ? '#333333' : '#888888'
       });
 
-      // Player count
-      const countText = this.add.text(MAP_SIZE * 0.7, y + 10, `${room.playerCount}/${room.maxPlayers}`, {
+      // Player count and status
+      const statusText = room.phase === 'playing' ? 'In Game' : `${room.playerCount}/${room.maxPlayers}`;
+      const countText = this.add.text(MAP_SIZE * 0.66, y + 10, statusText, {
         fontSize: '14px',
-        color: room.playerCount >= room.maxPlayers ? '#cc0000' : '#008800'
+        color: room.phase === 'playing' ? '#ff6600' : (room.playerCount >= room.maxPlayers ? '#cc0000' : '#008800')
       });
 
-      // Join button
-      const joinBtn = this.add.text(MAP_SIZE * 0.84, y + 8, 'Join', {
-        fontSize: '14px',
-        color: '#ffffff',
-        backgroundColor: '#FF9800',
-        padding: { x: 12, y: 5 }
-      }).setInteractive({ useHandCursor: true });
+      // Join button (only for joinable rooms)
+      if (isJoinable) {
+        const joinBtn = this.add.text(MAP_SIZE * 0.84, y + 8, 'Join', {
+          fontSize: '14px',
+          color: '#ffffff',
+          backgroundColor: '#FF9800',
+          padding: { x: 12, y: 5 }
+        }).setInteractive({ useHandCursor: true });
 
-      joinBtn.on('pointerdown', () => this.joinRoom(room.roomId));
-      joinBtn.on('pointerover', () => joinBtn.setStyle({ backgroundColor: '#FFB74D' }));
-      joinBtn.on('pointerout', () => joinBtn.setStyle({ backgroundColor: '#FF9800' }));
+        joinBtn.on('pointerdown', () => this.joinRoom(room.roomId));
+        joinBtn.on('pointerover', () => joinBtn.setStyle({ backgroundColor: '#FFB74D' }));
+        joinBtn.on('pointerout', () => joinBtn.setStyle({ backgroundColor: '#FF9800' }));
 
-      this.roomListContainer!.add([bg, nameText, countText, joinBtn]);
+        this.roomListContainer!.add([bg, nameText, countText, joinBtn]);
+      } else {
+        this.roomListContainer!.add([bg, nameText, countText]);
+      }
     });
   }
 
