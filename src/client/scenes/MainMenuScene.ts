@@ -21,6 +21,9 @@ export class MainMenuScene extends Phaser.Scene {
   private rooms: RoomInfo[] = [];
   private serverVersion: string = '';
 
+  // Timer reference for cleanup
+  private refreshTimer?: Phaser.Time.TimerEvent;
+
   constructor() {
     super({ key: 'MainMenuScene' });
   }
@@ -53,7 +56,8 @@ export class MainMenuScene extends Phaser.Scene {
     this.refreshRoomList();
 
     // Auto-refresh room list every 5 seconds
-    this.time.addEvent({
+    // Store timer reference for cleanup
+    this.refreshTimer = this.time.addEvent({
       delay: 5000,
       callback: () => this.refreshRoomList(),
       loop: true
@@ -349,6 +353,14 @@ export class MainMenuScene extends Phaser.Scene {
       this.scene.start('LobbyScene', { room, nickname: this.nickname });
     } catch (error) {
       console.error('Failed to join room:', error);
+    }
+  }
+
+  shutdown() {
+    // Cleanup timer
+    if (this.refreshTimer) {
+      this.refreshTimer.remove();
+      this.refreshTimer = undefined;
     }
   }
 }

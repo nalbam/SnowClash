@@ -5,6 +5,26 @@ import { SnowballSchema } from '../schema/SnowballSchema';
 import { BotController } from '../bots/BotController';
 import { generateNickname } from '../utils/NicknameGenerator';
 import {
+  createRoomFullError,
+  createGameInProgressError,
+  createTeamFullError,
+  createInvalidTeamError,
+} from '../../shared/errors';
+import { createLogger } from '../../shared/logger';
+import {
+  RoomOptions,
+  SetProfileMessage,
+  SelectTeamMessage,
+  ReadyMessage,
+  MoveMessage,
+  ThrowSnowballMessage,
+  isSetProfileMessage,
+  isSelectTeamMessage,
+  isReadyMessage,
+  isMoveMessage,
+  isThrowSnowballMessage,
+} from '../../shared/messages';
+import {
   MAP_SIZE,
   PLAYER_SPEED,
   PLAYER_RADIUS,
@@ -29,8 +49,10 @@ export class GameRoom extends Room<GameState> {
   private readyTimers: Map<string, NodeJS.Timeout> = new Map();
   private updateInterval?: NodeJS.Timeout;
   private botController?: BotController;
+  private endGameTimeout?: NodeJS.Timeout;
+  private logger = createLogger('GameRoom');
 
-  onCreate(options: any) {
+  onCreate(options: RoomOptions) {
     this.setState(new GameState());
     this.state.mapSize = MAP_SIZE;
 
@@ -45,7 +67,11 @@ export class GameRoom extends Room<GameState> {
     // Set metadata for room listing
     this.setMetadata({ roomName: this.state.roomName, phase: this.state.phase });
 
-    this.onMessage('setProfile', (client, message) => {
+    this.onMessage('setProfile', (client, message: any) => {
+      if (!isSetProfileMessage(message)) {
+        this.logger.warn('Invalid setProfile message', { sessionId: client.sessionId });
+        return;
+      }
       const player = this.state.players.get(client.sessionId);
       if (player) {
         player.nickname = message.nickname || 'Player';
@@ -54,19 +80,28 @@ export class GameRoom extends Room<GameState> {
       }
     });
 
-    this.onMessage('selectTeam', (client, message) => {
+    this.onMessage('selectTeam', (client, message: any) => {
+      if (!isSelectTeamMessage(message)) {
+        this.logger.warn('Invalid selectTeam message', { sessionId: client.sessionId });
+        return;
+      }
       const player = this.state.players.get(client.sessionId);
       if (!player || this.state.phase !== 'lobby') return;
 
       const team = message.team;
-      if (team !== 'red' && team !== 'blue') return;
 
       // Check team capacity
       const teamCount = Array.from(this.state.players.values())
         .filter(p => p.team === team).length;
 
       if (teamCount >= 3 && player.team !== team) {
-        client.send('error', { message: 'Team is full' });
+        const error = createTeamFullError(team);
+        client.send('error', error.toJSON());
+        this.logger.warn('Team selection rejected', {
+          sessionId: client.sessionId,
+          team,
+          reason: error.message
+        });
         return;
       }
 
@@ -74,7 +109,11 @@ export class GameRoom extends Room<GameState> {
       player.isReady = false; // Reset ready status when changing team
     });
 
-    this.onMessage('ready', (client, message) => {
+    this.onMessage('ready', (client, message: any) => {
+      if (!isReadyMessage(message)) {
+        this.logger.warn('Invalid ready message', { sessionId: client.sessionId });
+        return;
+      }
       const player = this.state.players.get(client.sessionId);
       if (!player || this.state.phase !== 'lobby' || !player.team) return;
 
@@ -97,7 +136,11 @@ export class GameRoom extends Room<GameState> {
       this.startGame();
     });
 
-    this.onMessage('move', (client, message) => {
+    this.onMessage('move', (client, message: any) => {
+      if (!isMoveMessage(message)) {
+        this.logger.warn('Invalid move message', { sessionId: client.sessionId });
+        return;
+      }
       if (this.state.phase !== 'playing') return;
 
       const player = this.state.players.get(client.sessionId);
@@ -114,7 +157,11 @@ export class GameRoom extends Room<GameState> {
       }
     });
 
-    this.onMessage('throwSnowball', (client, message) => {
+    this.onMessage('throwSnowball', (client, message: any) => {
+      if (!isThrowSnowballMessage(message)) {
+        this.logger.warn('Invalid throwSnowball message', { sessionId: client.sessionId });
+        return;
+      }
       if (this.state.phase !== 'playing') return;
 
       const player = this.state.players.get(client.sessionId);
@@ -146,16 +193,18 @@ export class GameRoom extends Room<GameState> {
     });
   }
 
-  onJoin(client: Client, options: any) {
+  onJoin(client: Client, options: RoomOptions) {
     // Validate: Check max players
     const humanPlayers = Array.from(this.state.players.values()).filter(p => !p.isBot);
     if (humanPlayers.length >= MAX_PLAYERS) {
-      throw new Error('Room is full');
+      this.logger.warn('Player join rejected - room full', { sessionId: client.sessionId });
+      throw createRoomFullError();
     }
 
     // Validate: Game already started
     if (this.state.phase !== 'lobby') {
-      throw new Error('Game already in progress');
+      this.logger.warn('Player join rejected - game in progress', { sessionId: client.sessionId });
+      throw createGameInProgressError();
     }
 
     // Sanitize nickname
@@ -242,6 +291,11 @@ export class GameRoom extends Room<GameState> {
   onDispose() {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
+    }
+
+    if (this.endGameTimeout) {
+      clearTimeout(this.endGameTimeout);
+      this.endGameTimeout = undefined;
     }
 
     this.readyTimers.forEach(timer => clearTimeout(timer));
@@ -397,7 +451,8 @@ export class GameRoom extends Room<GameState> {
     this.broadcast('gameEnded', { winner });
 
     // 눈덩이가 마저 움직이도록 3초 후에 업데이트 중지
-    setTimeout(() => {
+    // Store timeout reference for cleanup
+    this.endGameTimeout = setTimeout(() => {
       if (this.updateInterval) {
         clearInterval(this.updateInterval);
         this.updateInterval = undefined;

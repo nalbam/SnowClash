@@ -7,6 +7,7 @@ import { InputSystem } from '../systems/InputSystem';
 import { PlayerRenderSystem } from '../systems/PlayerRenderSystem';
 import { VirtualControllerSystem } from '../systems/VirtualControllerSystem';
 import { MAP_SIZE, PLAYER_SPEED, THROW_COOLDOWN, MIN_CHARGE_TIME } from '../../shared/constants';
+import { GameSceneInitData } from '../../shared/messages';
 
 export class GameScene extends Phaser.Scene {
   // Systems
@@ -35,6 +36,10 @@ export class GameScene extends Phaser.Scene {
   private gameEnded: boolean = false;
   private winner: string = '';
 
+  // Listener references for cleanup
+  private stateChangeHandler?: (state: any) => void;
+  private gameEndedHandler?: (message: any) => void;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -50,7 +55,7 @@ export class GameScene extends Phaser.Scene {
     this.load.audio('click', 'sounds/click.mp3');
   }
 
-  init(data: any) {
+  init(data: GameSceneInitData) {
     this.room = data.room;
     this.listenersSetup = false;
     this.playersListenersSetup = false;
@@ -242,7 +247,8 @@ export class GameScene extends Phaser.Scene {
     this.currentPlayer = this.room.sessionId;
 
     // Listen for state changes - this is the main way to get updates
-    this.room.onStateChange((state) => {
+    // Store handler reference for cleanup
+    this.stateChangeHandler = (state) => {
       // Check if we have team info and it's the first time
       const currentPlayerState = state.players?.get(this.currentPlayer || '');
       const team = currentPlayerState?.team;
@@ -271,7 +277,8 @@ export class GameScene extends Phaser.Scene {
 
       // Sync players from state (create missing, update existing)
       this.syncPlayersFromState(state);
-    });
+    };
+    this.room.onStateChange(this.stateChangeHandler);
 
     // Setup collection listeners after a short delay to ensure state is fully initialized
     // This is a Colyseus timing issue - MapSchema methods are not immediately available
@@ -281,9 +288,11 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    this.room.onMessage('gameEnded', (message) => {
+    // Store game ended handler reference for cleanup
+    this.gameEndedHandler = (message) => {
       this.showGameOver(message.winner);
-    });
+    };
+    this.room.onMessage('gameEnded', this.gameEndedHandler);
   }
 
   private setupCollectionListeners(state: any) {
@@ -510,6 +519,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    // Cleanup room listeners
+    // Note: Colyseus room listeners are automatically cleaned up when the room is destroyed
+    // We just need to clear our references to avoid holding onto stale callbacks
+    if (this.room) {
+      this.stateChangeHandler = undefined;
+      this.gameEndedHandler = undefined;
+    }
+
     // Cleanup systems
     if (this.inputSystem) {
       this.inputSystem.shutdown();

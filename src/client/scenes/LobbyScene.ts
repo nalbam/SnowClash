@@ -8,6 +8,7 @@ import {
   PLAYER_SPACING,
   UI_BORDER_MARGIN
 } from '../../shared/constants';
+import { LobbySceneInitData } from '../../shared/messages';
 
 export class LobbyScene extends Phaser.Scene {
   private room?: Room;
@@ -52,7 +53,7 @@ export class LobbyScene extends Phaser.Scene {
     return { x, y };
   }
 
-  init(data: any) {
+  init(data: LobbySceneInitData) {
     this.room = data.room;
     this.nickname = data.nickname || 'Player';
     this.listenersSetup = false;
@@ -302,7 +303,7 @@ export class LobbyScene extends Phaser.Scene {
   private setupRoomHandlers() {
     if (!this.room) return;
 
-    this.room.onStateChange((state) => {
+    this.room.onStateChange((state: any) => {
       if (!this.scene.isActive('LobbyScene')) return;
 
       if (!this.listenersSetup && state.players && typeof state.players.onAdd === 'function') {
