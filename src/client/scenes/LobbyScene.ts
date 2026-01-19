@@ -25,6 +25,12 @@ export class LobbyScene extends Phaser.Scene {
     super({ key: 'LobbyScene' });
   }
 
+  preload() {
+    // Load button sound effects
+    this.load.audio('hover', 'sounds/hover.mp3');
+    this.load.audio('click', 'sounds/click.mp3');
+  }
+
   /**
    * Convert server coordinates to view coordinates
    * Red team sees the map rotated 180 degrees
@@ -96,8 +102,8 @@ export class LobbyScene extends Phaser.Scene {
       padding: { x: 8, y: 4 }
     }).setInteractive({ useHandCursor: true }).setDepth(100);
 
-    backBtn.on('pointerdown', () => this.leaveRoom());
-    backBtn.on('pointerover', () => backBtn.setStyle({ color: '#000000', backgroundColor: '#ffffff' }));
+    backBtn.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.leaveRoom(); });
+    backBtn.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); backBtn.setStyle({ color: '#000000', backgroundColor: '#ffffff' }); });
     backBtn.on('pointerout', () => backBtn.setStyle({ color: '#666666', backgroundColor: '#ffffffcc' }));
 
     // Initialize graphics objects (but don't draw zones yet - wait for team info)
@@ -118,6 +124,7 @@ export class LobbyScene extends Phaser.Scene {
     const playableArea = this.add.zone(MAP_SIZE / 2, MAP_SIZE / 2, MAP_SIZE, MAP_SIZE);
     playableArea.setInteractive({ useHandCursor: true });
     playableArea.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.sound.play('click', { volume: 0.3 });
       this.handleTeamClick(pointer.x, pointer.y);
     });
 
@@ -155,7 +162,8 @@ export class LobbyScene extends Phaser.Scene {
       padding: { x: 20, y: 8 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    readyButton.on('pointerdown', () => this.toggleReady());
+    readyButton.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.toggleReady(); });
+    readyButton.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); });
 
     // Start button (host only, hidden by default)
     const startButton = this.add.text(centerX + 100, panelY, 'Start', {
@@ -165,7 +173,8 @@ export class LobbyScene extends Phaser.Scene {
       padding: { x: 20, y: 8 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
 
-    startButton.on('pointerdown', () => this.startGame());
+    startButton.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.startGame(); });
+    startButton.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); });
 
     // Store references
     this.data.set('readyButton', readyButton);

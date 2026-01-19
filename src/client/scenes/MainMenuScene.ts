@@ -25,6 +25,12 @@ export class MainMenuScene extends Phaser.Scene {
     super({ key: 'MainMenuScene' });
   }
 
+  preload() {
+    // Load button sound effects
+    this.load.audio('hover', 'sounds/hover.mp3');
+    this.load.audio('click', 'sounds/click.mp3');
+  }
+
   async create() {
     this.cameras.main.setBackgroundColor('#e8f4f8');
     this.client = new Client(config.wsUrl);
@@ -149,8 +155,8 @@ export class MainMenuScene extends Phaser.Scene {
       color: '#888888'
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    changeBtn.on('pointerdown', () => this.changeNickname());
-    changeBtn.on('pointerover', () => changeBtn.setColor('#333333'));
+    changeBtn.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.changeNickname(); });
+    changeBtn.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); changeBtn.setColor('#333333'); });
     changeBtn.on('pointerout', () => changeBtn.setColor('#888888'));
 
     // Quick Play button
@@ -161,8 +167,8 @@ export class MainMenuScene extends Phaser.Scene {
       padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    quickPlayBtn.on('pointerdown', () => this.quickPlay());
-    quickPlayBtn.on('pointerover', () => quickPlayBtn.setStyle({ backgroundColor: '#66BB6A' }));
+    quickPlayBtn.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.quickPlay(); });
+    quickPlayBtn.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); quickPlayBtn.setStyle({ backgroundColor: '#66BB6A' }); });
     quickPlayBtn.on('pointerout', () => quickPlayBtn.setStyle({ backgroundColor: '#4CAF50' }));
 
     // Create Room button
@@ -173,8 +179,8 @@ export class MainMenuScene extends Phaser.Scene {
       padding: { x: 20, y: 10 }
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    createRoomBtn.on('pointerdown', () => this.createRoom());
-    createRoomBtn.on('pointerover', () => createRoomBtn.setStyle({ backgroundColor: '#42A5F5' }));
+    createRoomBtn.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.createRoom(); });
+    createRoomBtn.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); createRoomBtn.setStyle({ backgroundColor: '#42A5F5' }); });
     createRoomBtn.on('pointerout', () => createRoomBtn.setStyle({ backgroundColor: '#2196F3' }));
 
     // Room list header
@@ -189,8 +195,8 @@ export class MainMenuScene extends Phaser.Scene {
       color: '#888888'
     }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
 
-    refreshBtn.on('pointerdown', () => this.refreshRoomList());
-    refreshBtn.on('pointerover', () => refreshBtn.setColor('#333333'));
+    refreshBtn.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.refreshRoomList(); });
+    refreshBtn.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); refreshBtn.setColor('#333333'); });
     refreshBtn.on('pointerout', () => refreshBtn.setColor('#888888'));
 
     // Room list container
@@ -294,8 +300,8 @@ export class MainMenuScene extends Phaser.Scene {
           padding: { x: 12, y: 5 }
         }).setInteractive({ useHandCursor: true });
 
-        joinBtn.on('pointerdown', () => this.joinRoom(room.roomId));
-        joinBtn.on('pointerover', () => joinBtn.setStyle({ backgroundColor: '#FFB74D' }));
+        joinBtn.on('pointerdown', () => { this.sound.play('click', { volume: 0.3 }); this.joinRoom(room.roomId); });
+        joinBtn.on('pointerover', () => { this.sound.play('hover', { volume: 0.2 }); joinBtn.setStyle({ backgroundColor: '#FFB74D' }); });
         joinBtn.on('pointerout', () => joinBtn.setStyle({ backgroundColor: '#FF9800' }));
 
         this.roomListContainer!.add([bg, nameText, countText, joinBtn]);

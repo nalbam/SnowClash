@@ -46,6 +46,8 @@ export class GameScene extends Phaser.Scene {
     this.load.audio('stun', 'sounds/stun.mp3');
     this.load.audio('victory', 'sounds/victory.mp3');
     this.load.audio('defeat', 'sounds/defeat.mp3');
+    this.load.audio('hover', 'sounds/hover.mp3');
+    this.load.audio('click', 'sounds/click.mp3');
   }
 
   init(data: any) {
@@ -479,6 +481,7 @@ export class GameScene extends Phaser.Scene {
 
     // Button hover effect
     buttonZone.on('pointerover', () => {
+      this.sound.play('hover', { volume: 0.2 });
       buttonBg.clear();
       buttonBg.fillStyle(0x66BB6A, 1);
       buttonBg.fillRoundedRect(centerX - buttonWidth / 2, buttonY - buttonHeight / 2, buttonWidth, buttonHeight, 10);
@@ -496,6 +499,7 @@ export class GameScene extends Phaser.Scene {
 
     // Button click handler
     buttonZone.on('pointerdown', () => {
+      this.sound.play('click', { volume: 0.3 });
       // Leave current room
       if (this.room) {
         this.room.leave();
