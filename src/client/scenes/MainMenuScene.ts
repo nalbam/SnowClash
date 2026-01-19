@@ -3,7 +3,7 @@ import { Client, Room } from 'colyseus.js';
 import { config } from '../config';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
 import { generateEnvironmentTextures, createMenuDecorations } from '../assets/EnvironmentAssets';
-import { MAP_SIZE } from '../../shared/constants';
+import { MAP_SIZE, UI_BORDER_MARGIN } from '../../shared/constants';
 
 interface RoomInfo {
   roomId: string;
@@ -99,18 +99,18 @@ export class MainMenuScene extends Phaser.Scene {
     const centerX = this.cameras.main.width / 2;
 
     // Title
-    this.add.text(centerX, 40, 'SnowClash', {
+    this.add.text(centerX, 55, 'SnowClash', {
       fontSize: '48px',
       color: '#333333',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Red team character (left of title)
-    const redCharacter = this.add.sprite(centerX - MAP_SIZE * 0.34, 40, 'character_red_idle');
+    const redCharacter = this.add.sprite(centerX - MAP_SIZE * 0.28, 55, 'character_red_idle');
     redCharacter.setScale(2);
     this.tweens.add({
       targets: redCharacter,
-      y: 35,
+      y: 50,
       duration: 800,
       yoyo: true,
       repeat: -1,
@@ -118,12 +118,12 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Blue team character (right of title)
-    const blueCharacter = this.add.sprite(centerX + MAP_SIZE * 0.34, 40, 'character_blue_idle');
+    const blueCharacter = this.add.sprite(centerX + MAP_SIZE * 0.28, 55, 'character_blue_idle');
     blueCharacter.setScale(2);
     blueCharacter.setFlipX(true); // Face toward center
     this.tweens.add({
       targets: blueCharacter,
-      y: 35,
+      y: 50,
       duration: 800,
       yoyo: true,
       repeat: -1,
@@ -132,19 +132,19 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Nickname section
-    this.add.text(centerX, 100, 'Your Nickname:', {
+    this.add.text(centerX, 115, 'Your Nickname:', {
       fontSize: '18px',
       color: '#666666'
     }).setOrigin(0.5);
 
-    this.nicknameText = this.add.text(centerX, 130, this.nickname, {
+    this.nicknameText = this.add.text(centerX, 145, this.nickname, {
       fontSize: '24px',
       color: '#008800',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Change nickname button
-    const changeBtn = this.add.text(centerX, 165, '[Change]', {
+    const changeBtn = this.add.text(centerX, 180, '[Change]', {
       fontSize: '14px',
       color: '#888888'
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -154,7 +154,7 @@ export class MainMenuScene extends Phaser.Scene {
     changeBtn.on('pointerout', () => changeBtn.setColor('#888888'));
 
     // Quick Play button
-    const quickPlayBtn = this.add.text(centerX - MAP_SIZE * 0.16, 220, 'Quick Play', {
+    const quickPlayBtn = this.add.text(centerX - MAP_SIZE * 0.16, 235, 'Quick Play', {
       fontSize: '20px',
       color: '#ffffff',
       backgroundColor: '#4CAF50',
@@ -166,7 +166,7 @@ export class MainMenuScene extends Phaser.Scene {
     quickPlayBtn.on('pointerout', () => quickPlayBtn.setStyle({ backgroundColor: '#4CAF50' }));
 
     // Create Room button
-    const createRoomBtn = this.add.text(centerX + MAP_SIZE * 0.16, 220, 'Create Room', {
+    const createRoomBtn = this.add.text(centerX + MAP_SIZE * 0.16, 235, 'Create Room', {
       fontSize: '20px',
       color: '#ffffff',
       backgroundColor: '#2196F3',
@@ -178,13 +178,13 @@ export class MainMenuScene extends Phaser.Scene {
     createRoomBtn.on('pointerout', () => createRoomBtn.setStyle({ backgroundColor: '#2196F3' }));
 
     // Room list header
-    this.add.text(centerX, 280, 'Available Rooms', {
+    this.add.text(centerX, 295, 'Available Rooms', {
       fontSize: '20px',
       color: '#333333'
     }).setOrigin(0.5);
 
-    // Refresh button (positioned to the right)
-    const refreshBtn = this.add.text(MAP_SIZE - 50, 280, '[Refresh]', {
+    // Refresh button (positioned to the right, inside border margin)
+    const refreshBtn = this.add.text(MAP_SIZE - UI_BORDER_MARGIN - 10, 295, '[Refresh]', {
       fontSize: '12px',
       color: '#888888'
     }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
@@ -194,11 +194,11 @@ export class MainMenuScene extends Phaser.Scene {
     refreshBtn.on('pointerout', () => refreshBtn.setColor('#888888'));
 
     // Room list container
-    this.roomListContainer = this.add.container(0, 320);
+    this.roomListContainer = this.add.container(0, 335);
 
-    // Version info at bottom
+    // Version info at bottom (above tree line)
     const versionText = `Client: v${config.clientVersion} | Server: v${this.serverVersion}`;
-    this.add.text(centerX, MAP_SIZE - 20, versionText, {
+    this.add.text(centerX, MAP_SIZE - UI_BORDER_MARGIN + 10, versionText, {
       fontSize: '10px',
       color: '#999999'
     }).setOrigin(0.5);
@@ -258,6 +258,9 @@ export class MainMenuScene extends Phaser.Scene {
     // Filter out ended rooms
     const activeRooms = this.rooms.filter(room => room.phase !== 'ended');
 
+    const listMargin = UI_BORDER_MARGIN;
+    const listWidth = MAP_SIZE - listMargin * 2;
+
     activeRooms.forEach((room, index) => {
       const y = index * 45;
       const isJoinable = room.phase === 'lobby' && room.playerCount < room.maxPlayers;
@@ -266,25 +269,25 @@ export class MainMenuScene extends Phaser.Scene {
       const bg = this.add.graphics();
       bg.fillStyle(isJoinable ? 0xffffff : 0xeeeeee, 0.8);
       bg.lineStyle(1, 0xcccccc, 1);
-      bg.fillRoundedRect(20, y, MAP_SIZE - 40, 38, 8);
-      bg.strokeRoundedRect(20, y, MAP_SIZE - 40, 38, 8);
+      bg.fillRoundedRect(listMargin, y, listWidth, 38, 8);
+      bg.strokeRoundedRect(listMargin, y, listWidth, 38, 8);
 
       // Room name
-      const nameText = this.add.text(35, y + 10, room.roomName, {
+      const nameText = this.add.text(listMargin + 15, y + 10, room.roomName, {
         fontSize: '14px',
         color: isJoinable ? '#333333' : '#888888'
       });
 
       // Player count and status
       const statusText = room.phase === 'playing' ? 'In Game' : `${room.playerCount}/${room.maxPlayers}`;
-      const countText = this.add.text(MAP_SIZE * 0.66, y + 10, statusText, {
+      const countText = this.add.text(listMargin + listWidth * 0.62, y + 10, statusText, {
         fontSize: '14px',
         color: room.phase === 'playing' ? '#ff6600' : (room.playerCount >= room.maxPlayers ? '#cc0000' : '#008800')
       });
 
       // Join button (only for joinable rooms)
       if (isJoinable) {
-        const joinBtn = this.add.text(MAP_SIZE * 0.84, y + 8, 'Join', {
+        const joinBtn = this.add.text(listMargin + listWidth * 0.82, y + 8, 'Join', {
           fontSize: '14px',
           color: '#ffffff',
           backgroundColor: '#FF9800',

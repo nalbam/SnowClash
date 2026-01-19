@@ -5,7 +5,8 @@ import { generateEnvironmentTextures, createEnvironmentDecorations } from '../as
 import {
   MAP_SIZE,
   PLAYABLE_AREA_BOTTOM,
-  PLAYER_SPACING
+  PLAYER_SPACING,
+  UI_BORDER_MARGIN
 } from '../../shared/constants';
 
 export class LobbyScene extends Phaser.Scene {
@@ -72,28 +73,30 @@ export class LobbyScene extends Phaser.Scene {
   private createUI() {
     const centerX = MAP_SIZE / 2;
 
-    // Title and room name at top
-    this.add.text(centerX, 20, 'Game Lobby', {
+    // Title and room name at top (inside border margin)
+    this.add.text(centerX, UI_BORDER_MARGIN + 5, 'Game Lobby', {
       fontSize: '24px',
       color: '#333333',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     const roomName = (this.room?.state as any)?.roomName || 'Game Room';
-    this.add.text(centerX, 50, roomName, {
+    this.add.text(centerX, UI_BORDER_MARGIN + 30, roomName, {
       fontSize: '14px',
       color: '#666666'
     }).setOrigin(0.5);
 
-    // Back button
-    const backBtn = this.add.text(20, 20, '< Back', {
+    // Back button (inside border margin, high depth to be above playableArea zone)
+    const backBtn = this.add.text(UI_BORDER_MARGIN, UI_BORDER_MARGIN + 5, '< Back', {
       fontSize: '14px',
-      color: '#666666'
-    }).setInteractive({ useHandCursor: true });
+      color: '#666666',
+      backgroundColor: '#ffffffcc',
+      padding: { x: 8, y: 4 }
+    }).setInteractive({ useHandCursor: true }).setDepth(100);
 
     backBtn.on('pointerdown', () => this.leaveRoom());
-    backBtn.on('pointerover', () => backBtn.setColor('#000000'));
-    backBtn.on('pointerout', () => backBtn.setColor('#666666'));
+    backBtn.on('pointerover', () => backBtn.setStyle({ color: '#000000', backgroundColor: '#ffffff' }));
+    backBtn.on('pointerout', () => backBtn.setStyle({ color: '#666666', backgroundColor: '#ffffffcc' }));
 
     // Initialize graphics objects (but don't draw zones yet - wait for team info)
     this.redZone = this.add.graphics();

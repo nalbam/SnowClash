@@ -38,6 +38,7 @@ export const SPAWN_PADDING = 20; // Distance from map edges for spawning
 // UI Layout
 export const UI_HEADER_HEIGHT = 70; // Top margin for title/header
 export const UI_FOOTER_HEIGHT = 70; // Bottom margin for buttons
+export const UI_BORDER_MARGIN = 50; // Margin from edges to avoid tree decorations
 export const MOBILE_CONTROLLER_HEIGHT = 200; // Mobile virtual controller area height
 
 // Calculated UI values
