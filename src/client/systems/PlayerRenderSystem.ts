@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MAP_SIZE } from '../../shared/constants';
 
 export interface PlayerSpriteData {
+  container: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Sprite;
   indicator: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
@@ -83,26 +84,34 @@ export class PlayerRenderSystem {
     // Convert server coordinates to view coordinates
     const viewPos = this.toViewCoords(state.x, state.y);
 
-    // Create sprite for player
-    const sprite = this.scene.add.sprite(viewPos.x, viewPos.y, textureKey) as Phaser.GameObjects.Sprite;
+    // Create container to hold all player elements (moves together)
+    const container = this.scene.add.container(viewPos.x, viewPos.y);
+
+    // Create sprite for player (at container origin)
+    const sprite = this.scene.add.sprite(0, 0, textureKey);
     sprite.setScale(1);
+    container.add(sprite);
 
-    // Create indicator
+    // Create indicator (relative to container)
     const indicator = this.scene.add.graphics();
+    container.add(indicator);
 
-    // Create player label
-    const label = this.scene.add.text(viewPos.x, viewPos.y - 30, state.nickname || 'Player', {
+    // Create player label (relative to container)
+    const label = this.scene.add.text(0, -30, state.nickname || 'Player', {
       fontSize: '10px',
       color: '#000000',
       backgroundColor: '#ffffffcc',
       padding: { x: 3, y: 1 }
     }).setOrigin(0.5);
+    container.add(label);
 
-    // Create energy bar
+    // Create energy bar (relative to container)
     const energyBar = this.scene.add.graphics();
+    container.add(energyBar);
 
     // Store player data (store server coordinates for tracking movement)
     this.players.set(sessionId, {
+      container,
       sprite,
       indicator,
       label,
@@ -123,7 +132,6 @@ export class PlayerRenderSystem {
     const playerData = this.players.get(sessionId);
     if (!playerData) return;
 
-    const { sprite, indicator, label, energyBar } = playerData;
     const team = state.team || 'red';
 
     // Check if player is moving
@@ -133,8 +141,8 @@ export class PlayerRenderSystem {
       ? this.localPlayerMoving
       : (playerData.lastX !== state.x || playerData.lastY !== state.y);
 
-    // Update position with interpolation
-    this.updateSpritePosition(playerData, state, isLocalPlayer);
+    // Update container position with interpolation
+    this.updateContainerPosition(playerData, state, isLocalPlayer);
 
     // Update animation
     this.updateAnimation(playerData, state, isMoving, context);
@@ -143,13 +151,7 @@ export class PlayerRenderSystem {
     playerData.lastX = state.x;
     playerData.lastY = state.y;
 
-    // Update indicator
-    this.updateIndicator(playerData, sessionId, state, indicator);
-
-    // Update label position
-    label.setPosition(sprite.x, sprite.y - 30);
-
-    // Update energy bar
+    // Update energy bar (drawn at relative position inside container)
     this.updateEnergyBar(playerData, state, context);
   }
 
@@ -160,14 +162,13 @@ export class PlayerRenderSystem {
     const playerData = this.players.get(sessionId);
     if (!playerData) return;
 
-    playerData.sprite.setPosition(x, y);
+    // Update container position - all children move together
+    playerData.container.setPosition(x, y);
 
-    // Update label and indicator positions
-    playerData.label.setPosition(x, y - 30);
-
+    // Update indicator (relative to container origin)
     playerData.indicator.clear();
     playerData.indicator.lineStyle(2, 0xffff00, 1);
-    playerData.indicator.strokeCircle(x, y, 20);
+    playerData.indicator.strokeCircle(0, 0, 20);
   }
 
   /**
@@ -177,10 +178,8 @@ export class PlayerRenderSystem {
     const playerData = this.players.get(sessionId);
     if (!playerData) return;
 
-    playerData.sprite.destroy();
-    playerData.indicator.destroy();
-    playerData.label.destroy();
-    playerData.energyBar.destroy();
+    // Destroy container (destroys all children automatically)
+    playerData.container.destroy();
 
     this.players.delete(sessionId);
   }
@@ -200,8 +199,8 @@ export class PlayerRenderSystem {
     if (!playerData) return null;
 
     return {
-      x: playerData.sprite.x,
-      y: playerData.sprite.y
+      x: playerData.container.x,
+      y: playerData.container.y
     };
   }
 
@@ -210,19 +209,16 @@ export class PlayerRenderSystem {
    */
   public clear(): void {
     this.players.forEach((playerData) => {
-      playerData.sprite.destroy();
-      playerData.indicator.destroy();
-      playerData.label.destroy();
-      playerData.energyBar.destroy();
+      playerData.container.destroy();
     });
     this.players.clear();
   }
 
   /**
-   * Update sprite position with interpolation
+   * Update container position with interpolation
    */
-  private updateSpritePosition(playerData: PlayerSpriteData, state: PlayerState, isLocalPlayer: boolean): void {
-    const { sprite } = playerData;
+  private updateContainerPosition(playerData: PlayerSpriteData, state: PlayerState, isLocalPlayer: boolean): void {
+    const { container } = playerData;
 
     // Convert server coordinates to view coordinates
     const viewPos = this.toViewCoords(state.x, state.y);
@@ -230,19 +226,19 @@ export class PlayerRenderSystem {
     if (!isLocalPlayer) {
       // For remote players, smoothly interpolate to server position
       const lerpSpeed = 0.3;
-      sprite.x += (viewPos.x - sprite.x) * lerpSpeed;
-      sprite.y += (viewPos.y - sprite.y) * lerpSpeed;
+      container.x += (viewPos.x - container.x) * lerpSpeed;
+      container.y += (viewPos.y - container.y) * lerpSpeed;
     } else {
       // For local player, apply smooth correction towards server position
       const correctionSpeed = 0.2;
-      const dx = viewPos.x - sprite.x;
-      const dy = viewPos.y - sprite.y;
+      const dx = viewPos.x - container.x;
+      const dy = viewPos.y - container.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       // Only correct if there's significant deviation (more than 5 pixels)
       if (distance > 5) {
-        sprite.x += dx * correctionSpeed;
-        sprite.y += dy * correctionSpeed;
+        container.x += dx * correctionSpeed;
+        container.y += dy * correctionSpeed;
       }
     }
   }
@@ -305,7 +301,7 @@ export class PlayerRenderSystem {
    * Update energy bar with smooth interpolation
    */
   private updateEnergyBar(playerData: PlayerSpriteData, state: PlayerState, context: GameContext): void {
-    const { sprite, energyBar } = playerData;
+    const { energyBar } = playerData;
 
     energyBar.clear();
 
@@ -323,15 +319,16 @@ export class PlayerRenderSystem {
     const barHeight = 4;
     const energyPercent = Math.max(0, playerData.displayEnergy / 10);
 
+    // Draw at relative position (0, -40) inside container
     // Background
     energyBar.fillStyle(0x000000, 0.5);
-    energyBar.fillRect(sprite.x - barWidth / 2, sprite.y - 40, barWidth, barHeight);
+    energyBar.fillRect(-barWidth / 2, -40, barWidth, barHeight);
 
     // Energy fill
     if (energyPercent > 0) {
       const energyColor = energyPercent > 0.5 ? 0x00ff00 : energyPercent > 0.25 ? 0xffff00 : 0xff0000;
       energyBar.fillStyle(energyColor, 1);
-      energyBar.fillRect(sprite.x - barWidth / 2, sprite.y - 40, barWidth * energyPercent, barHeight);
+      energyBar.fillRect(-barWidth / 2, -40, barWidth * energyPercent, barHeight);
     }
   }
 
@@ -342,18 +339,18 @@ export class PlayerRenderSystem {
     const playerData = this.players.get(sessionId);
     if (!playerData) return;
 
-    const { sprite, indicator } = playerData;
+    const { indicator } = playerData;
 
     indicator.clear();
 
     if (isCurrentPlayer) {
-      // Yellow ring for current player
+      // Yellow ring for current player (relative to container origin)
       indicator.lineStyle(2, 0xffff00, 1);
-      indicator.strokeCircle(sprite.x, sprite.y, 20);
+      indicator.strokeCircle(0, 0, 20);
     } else if (isBot) {
-      // Gray ring for bots
+      // Gray ring for bots (relative to container origin)
       indicator.lineStyle(1, 0x888888, 0.5);
-      indicator.strokeCircle(sprite.x, sprite.y, 18);
+      indicator.strokeCircle(0, 0, 18);
     }
   }
 }
