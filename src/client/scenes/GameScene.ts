@@ -15,6 +15,9 @@ export class GameScene extends Phaser.Scene {
   private playerRenderSystem?: PlayerRenderSystem;
   private virtualController?: VirtualControllerSystem;
 
+  // Sound loaded flags
+  private soundsLoaded: boolean = false;
+
   // Mobile flag
   private isMobile: boolean = false;
 
@@ -34,6 +37,13 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'GameScene' });
+  }
+
+  preload() {
+    // Load sound effects
+    this.load.audio('throw', 'sounds/throw.mp3');
+    this.load.audio('hit', 'sounds/hit.mp3');
+    this.load.audio('stun', 'sounds/stun.mp3');
   }
 
   init(data: any) {
@@ -68,6 +78,9 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#e8f4f8');
+
+    // Mark sounds as loaded
+    this.soundsLoaded = true;
 
     // Generate pixel art textures
     generateCharacterTextures(this);

@@ -10,6 +10,8 @@ export interface PlayerSpriteData {
   lastX: number;
   lastY: number;
   displayEnergy: number;  // For smooth energy bar interpolation
+  wasStunned: boolean;    // Track previous stun state for sound effect
+  lastEnergy: number;     // Track previous energy for hit sound effect
 }
 
 export interface PlayerState {
@@ -118,7 +120,9 @@ export class PlayerRenderSystem {
       energyBar,
       lastX: state.x,
       lastY: state.y,
-      displayEnergy: state.energy
+      displayEnergy: state.energy,
+      wasStunned: state.isStunned,
+      lastEnergy: state.energy
     });
 
     // Initial update
@@ -146,6 +150,26 @@ export class PlayerRenderSystem {
 
     // Update animation
     this.updateAnimation(playerData, state, isMoving, context);
+
+    // Check for hit (energy decreased) and play sound
+    if (state.energy < playerData.lastEnergy) {
+      try {
+        this.scene.sound.play('hit', { volume: 0.3 });
+      } catch (e) {
+        // Sound may not be loaded
+      }
+    }
+    playerData.lastEnergy = state.energy;
+
+    // Check for stun state change and play sound
+    if (state.isStunned && !playerData.wasStunned) {
+      try {
+        this.scene.sound.play('stun', { volume: 0.4 });
+      } catch (e) {
+        // Sound may not be loaded
+      }
+    }
+    playerData.wasStunned = state.isStunned;
 
     // Update last position (use server position for tracking movement state)
     playerData.lastX = state.x;

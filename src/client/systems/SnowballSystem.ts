@@ -61,6 +61,13 @@ export class SnowballSystem {
 
     this.snowballs.set(id, { sprite });
     this.snowballPositions.set(id, { ...state });
+
+    // Play throw sound
+    try {
+      this.scene.sound.play('throw', { volume: 0.5 });
+    } catch (e) {
+      // Sound may not be loaded
+    }
   }
 
   /**
