@@ -117,6 +117,7 @@ All game constants are defined in `src/shared/constants.ts` and shared between s
 **UI Layout:**
 - `UI_HEADER_HEIGHT`: 70px (top margin for title/header)
 - `UI_FOOTER_HEIGHT`: 70px (bottom margin for buttons)
+- `UI_BORDER_MARGIN`: 50px (margin from edges to avoid tree decorations)
 - `MOBILE_CONTROLLER_HEIGHT`: 200px (mobile virtual controller area)
 - `PLAYABLE_AREA_TOP`: 70px (calculated: UI_HEADER_HEIGHT)
 - `PLAYABLE_AREA_BOTTOM`: 730px (calculated: MAP_SIZE - UI_FOOTER_HEIGHT)
@@ -189,12 +190,16 @@ All game constants are defined in `src/shared/constants.ts` and shared between s
 
 ### Client (build-time)
 - `SERVER_URL`: Server address for client to connect (default: `localhost:2567`)
+- `CLIENT_VERSION`: Client version displayed in main menu (default: read from `package.json`)
 ```bash
 # Development (default)
 npm run dev
 
 # Production build with custom server
 SERVER_URL=snowclash.server.nalbam.com npm run build
+
+# The CLIENT_VERSION is automatically set from package.json by webpack
+# but can be overridden if needed
 ```
 
 ### Server (runtime)

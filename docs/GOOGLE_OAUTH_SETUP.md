@@ -1,6 +1,12 @@
 # Google OAuth Setup Guide
 
-This guide will help you set up Google OAuth authentication for SnowClash.
+> **⚠️ NOTICE: This feature is NOT currently implemented**
+>
+> This document describes a **planned future enhancement**. The current implementation only includes placeholder fields (`googleId`, `photoUrl`) in the server schema, but **no actual OAuth flow is implemented** in the client.
+>
+> SnowClash currently uses **anonymous login with random nicknames** only. This guide is kept for future reference when implementing Google OAuth.
+
+This guide will help you set up Google OAuth authentication for SnowClash (when implemented).
 
 ## Steps to Enable Google Sign-In
 

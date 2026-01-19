@@ -83,6 +83,7 @@ npm start
 
 ### Client (build-time)
 - `SERVER_URL`: Server address for client to connect (default: `localhost:2567`)
+- `CLIENT_VERSION`: Client version displayed in main menu (default: read from `package.json`)
 
 ```bash
 # Development
@@ -90,6 +91,8 @@ npm run build
 
 # Production
 SERVER_URL=snowclash.server.nalbam.com npm run build
+
+# CLIENT_VERSION is automatically set from package.json during build
 ```
 
 ### Server (runtime)
@@ -174,7 +177,7 @@ For more detailed information, see the **[Documentation Index](./docs/README.md)
 
 ### Deployment
 - **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
-- **[Google OAuth Setup](./docs/GOOGLE_OAUTH_SETUP.md)** - OAuth 2.0 configuration
+- **[Google OAuth Setup](./docs/GOOGLE_OAUTH_SETUP.md)** - ⚠️ Not currently implemented (future enhancement)
 - **[Release Guide](./docs/RELEASE.md)** - Creating releases and deploying with GitHub Actions
 
 ## Release Process

@@ -69,10 +69,21 @@ room.state.players.onAdd((player) => { ... });
     "roomId": "abc123",
     "roomName": "Player의 방",
     "playerCount": 2,
-    "maxPlayers": 6
+    "maxPlayers": 6,
+    "phase": "lobby"
   }
 ]
 ```
+
+**응답 필드**
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `roomId` | string | 룸 고유 ID |
+| `roomName` | string | 룸 이름 |
+| `playerCount` | number | 현재 플레이어 수 |
+| `maxPlayers` | number | 최대 플레이어 수 (항상 6) |
+| `phase` | string | 현재 게임 페이즈 (`'lobby'`, `'playing'`, `'ended'`) |
 
 ### POST /api/rooms
 

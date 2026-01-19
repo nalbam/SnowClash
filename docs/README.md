@@ -57,8 +57,8 @@ Server: `snowclash.server.nalbam.com`
   - AWS/Cloud deployment
   - Horizontal scaling with Redis
 
-- **[Google OAuth Setup](./GOOGLE_OAUTH_SETUP.md)** - Google authentication configuration
-  - OAuth 2.0 setup
+- **[Google OAuth Setup](./GOOGLE_OAUTH_SETUP.md)** - ⚠️ **Not Currently Implemented** (Future enhancement)
+  - OAuth 2.0 setup (planned)
   - Credentials configuration
   - Integration guide
 
