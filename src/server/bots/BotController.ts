@@ -41,8 +41,13 @@ export class BotController {
 
     this.state.players.set(botId, bot);
     this.botIds.add(botId);
-    this.lastAttackTime.set(botId, 0);
-    this.lastDirectionChange.set(botId, 0);
+
+    // Randomize initial attack/direction timing so bots don't act in sync
+    const now = Date.now();
+    const randomAttackOffset = Math.random() * BOT_ATTACK_INTERVAL;
+    const randomDirectionOffset = Math.random() * BOT_DIRECTION_CHANGE_INTERVAL;
+    this.lastAttackTime.set(botId, now - randomAttackOffset);
+    this.lastDirectionChange.set(botId, now - randomDirectionOffset);
     this.moveDirection.set(botId, { dx: 0, dy: 0 });
     this.state.botCount++;
 
