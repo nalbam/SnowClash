@@ -17,6 +17,7 @@ export class LobbyScene extends Phaser.Scene {
   private redZone?: Phaser.GameObjects.Graphics;
   private blueZone?: Phaser.GameObjects.Graphics;
   private playerSprites: Map<string, Phaser.GameObjects.Container> = new Map();
+  private ghostBots: Map<string, Phaser.GameObjects.Container> = new Map();
   private myTeam?: string;
   private teamLabels?: { red: Phaser.GameObjects.Text; blue: Phaser.GameObjects.Text };
 
@@ -50,6 +51,7 @@ export class LobbyScene extends Phaser.Scene {
     this.nickname = data.nickname || 'Player';
     this.listenersSetup = false;
     this.playerSprites.clear();
+    this.ghostBots.clear();
     this.myTeam = undefined;
     this.teamLabels = undefined;
   }
@@ -168,6 +170,43 @@ export class LobbyScene extends Phaser.Scene {
     // Store references
     this.data.set('readyButton', readyButton);
     this.data.set('startButton', startButton);
+
+    // Create ghost bot slots (3 per team)
+    this.createGhostBots();
+  }
+
+  /**
+   * Create ghost bot placeholders for empty slots
+   */
+  private createGhostBots(): void {
+    const teams = ['red', 'blue'];
+    const slotsPerTeam = 3;
+
+    teams.forEach(team => {
+      for (let i = 0; i < slotsPerTeam; i++) {
+        const ghostId = `ghost_${team}_${i}`;
+        const container = this.add.container(0, 0);
+
+        // Create ghost sprite (semi-transparent)
+        const sprite = this.add.sprite(0, 0, `character_${team}_idle`);
+        sprite.setScale(1.2);
+        sprite.setAlpha(0.3);
+        container.add(sprite);
+
+        // Create "BOT" label
+        const label = this.add.text(0, -35, '[BOT]', {
+          fontSize: '9px',
+          color: '#888888',
+          backgroundColor: '#ffffff88',
+          padding: { x: 3, y: 1 }
+        }).setOrigin(0.5);
+        container.add(label);
+
+        container.setVisible(false);
+        container.setDepth(-5);
+        this.ghostBots.set(ghostId, container);
+      }
+    });
   }
 
 
@@ -337,7 +376,57 @@ export class LobbyScene extends Phaser.Scene {
       this.updatePlayerSprite(sessionId, player);
     });
 
+    // Update ghost bots visibility
+    this.updateGhostBots();
+
     this.updateButtonStyles();
+  }
+
+  /**
+   * Update ghost bot positions and visibility based on actual players
+   */
+  private updateGhostBots(): void {
+    if (!this.room?.state) return;
+
+    const state = this.room.state as any;
+    const players = Array.from(state.players.values()) as any[];
+
+    // Count players per team
+    const redPlayers = players.filter(p => p.team === 'red');
+    const bluePlayers = players.filter(p => p.team === 'blue');
+
+    const teams = [
+      { name: 'red', count: redPlayers.length },
+      { name: 'blue', count: bluePlayers.length }
+    ];
+
+    teams.forEach(({ name: team, count }) => {
+      for (let i = 0; i < 3; i++) {
+        const ghostId = `ghost_${team}_${i}`;
+        const container = this.ghostBots.get(ghostId);
+        if (!container) continue;
+
+        // Show ghost bot only for empty slots (after actual players)
+        if (i >= count) {
+          container.setVisible(true);
+
+          // Calculate position (same logic as updatePlayerSprite)
+          let serverX: number, serverY: number;
+          if (team === 'red') {
+            serverX = MAP_SIZE * 0.54 + i * PLAYER_SPACING;
+            serverY = MAP_SIZE * 0.24 + i * PLAYER_SPACING;
+          } else {
+            serverX = MAP_SIZE * 0.2 + i * PLAYER_SPACING;
+            serverY = MAP_SIZE * 0.5 + i * PLAYER_SPACING;
+          }
+
+          const viewPos = this.toViewCoords(serverX, serverY);
+          container.setPosition(viewPos.x, viewPos.y);
+        } else {
+          container.setVisible(false);
+        }
+      }
+    });
   }
 
   private updatePlayerSprite(sessionId: string, player: any) {
