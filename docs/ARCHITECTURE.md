@@ -759,7 +759,10 @@ GameScene
 SnowClash/
 ├── src/
 │   ├── shared/                      # 공유 코드 (서버/클라이언트 공통)
-│   │   └── constants.ts             # 게임 상수 (MAP_SIZE, PLAYER_SPEED, etc.)
+│   │   ├── constants.ts             # 게임 상수 (MAP_SIZE, PLAYER_SPEED, etc.)
+│   │   ├── errors.ts                # 에러 코드 및 GameError 클래스
+│   │   ├── logger.ts                # 로깅 유틸리티 (Logger 클래스)
+│   │   └── messages.ts              # 메시지 인터페이스 및 타입 가드
 │   │
 │   ├── client/                      # 클라이언트 코드
 │   │   ├── index.ts                 # Phaser 게임 설정

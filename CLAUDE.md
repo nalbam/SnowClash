@@ -50,6 +50,9 @@ SnowClash is a 3v3 multiplayer snowball fight game using a client-server archite
 
 ### Shared
 - **Constants**: `src/shared/constants.ts` - Game constants shared between server and client
+- **Errors**: `src/shared/errors.ts` - Error handling utilities (GameErrorCode enum, GameError class, factory functions)
+- **Logger**: `src/shared/logger.ts` - Logging utility (Logger class, LogLevel enum, createLogger factory)
+- **Messages**: `src/shared/messages.ts` - Type-safe message interfaces and type guards for client-server communication
 
 ### Client (Phaser 3)
 - **Entry point**: `src/client/index.ts` - Phaser game config
