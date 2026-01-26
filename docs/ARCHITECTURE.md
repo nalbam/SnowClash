@@ -239,6 +239,128 @@ class SnowballSchema extends Schema {
 
 ---
 
+## 공유 유틸리티
+
+서버와 클라이언트에서 공통으로 사용하는 코드입니다.
+
+### 에러 처리 (`src/shared/errors.ts`)
+
+게임에서 발생하는 에러를 일관되게 처리합니다.
+
+#### GameErrorCode
+
+에러 유형을 분류하는 열거형입니다.
+
+| 카테고리 | 코드 | 설명 |
+|---------|------|------|
+| Room (1xxx) | `ROOM_FULL`, `GAME_IN_PROGRESS`, `ROOM_NOT_FOUND` | 룸 관련 에러 |
+| Player (2xxx) | `INVALID_NICKNAME`, `NOT_READY`, `NO_TEAM_SELECTED`, `NOT_HOST` | 플레이어 관련 에러 |
+| Team (3xxx) | `TEAM_FULL`, `INVALID_TEAM` | 팀 관련 에러 |
+| Game State (4xxx) | `INVALID_PHASE`, `PLAYER_STUNNED` | 게임 상태 에러 |
+| Network (5xxx) | `CONNECTION_ERROR`, `TIMEOUT`, `RATE_LIMITED` | 네트워크 에러 |
+| Validation (6xxx) | `INVALID_INPUT`, `VALIDATION_FAILED` | 검증 에러 |
+| Internal (9xxx) | `INTERNAL_ERROR`, `UNKNOWN_ERROR` | 내부 에러 |
+
+#### GameError 클래스
+
+```typescript
+class GameError extends Error {
+  code: GameErrorCode;     // 에러 코드
+  statusCode: number;      // HTTP 상태 코드
+  metadata?: Record<string, any>;  // 추가 정보
+  timestamp: number;       // 발생 시간
+}
+```
+
+#### 팩토리 함수
+
+자주 사용되는 에러를 쉽게 생성합니다.
+
+```typescript
+createRoomFullError()           // 403 - 룸 정원 초과
+createGameInProgressError()     // 403 - 게임 진행 중
+createTeamFullError(team)       // 403 - 팀 정원 초과
+createInvalidTeamError(team)    // 400 - 잘못된 팀
+createNotHostError()            // 403 - 호스트 권한 필요
+createInvalidPhaseError(phase)  // 400 - 잘못된 페이즈
+createPlayerStunnedError()      // 400 - 스턴 상태
+```
+
+### 로깅 유틸리티 (`src/shared/logger.ts`)
+
+환경에 맞는 로깅을 제공합니다.
+
+#### LogLevel
+
+| 레벨 | 값 | 설명 |
+|------|---|------|
+| `DEBUG` | 0 | 디버그 정보 |
+| `INFO` | 1 | 일반 정보 |
+| `WARN` | 2 | 경고 |
+| `ERROR` | 3 | 에러 |
+
+#### Logger 클래스
+
+```typescript
+const logger = createLogger('GameRoom');
+
+logger.debug('Player joined', { sessionId });  // 개발 환경만
+logger.info('Game started');                   // 일반 로그
+logger.warn('Player not ready');               // 경고
+logger.error('Connection failed', error);      // 에러 (스택 트레이스 포함)
+```
+
+- **Node.js**: DEBUG 레벨부터 출력
+- **브라우저**: INFO 레벨부터 출력
+
+### 메시지 타입 (`src/shared/messages.ts`)
+
+클라이언트-서버 간 메시지의 타입을 정의합니다.
+
+#### 클라이언트 → 서버
+
+| 인터페이스 | 메시지 타입 | 필드 |
+|-----------|------------|------|
+| `SetProfileMessage` | `setProfile` | nickname, googleId?, photoUrl? |
+| `SelectTeamMessage` | `selectTeam` | team: 'red' \| 'blue' |
+| `ReadyMessage` | `ready` | ready: boolean |
+| `StartGameMessage` | `startGame` | (없음) |
+| `MoveMessage` | `move` | x: number, y: number |
+| `ThrowSnowballMessage` | `throwSnowball` | chargeLevel: number |
+
+#### 서버 → 클라이언트
+
+| 인터페이스 | 메시지 타입 | 필드 |
+|-----------|------------|------|
+| `GameEndedMessage` | `gameEnded` | winner: 'red' \| 'blue' \| 'draw' |
+| `PlayerKickedMessage` | `playerKicked` | sessionId, reason |
+| `ErrorMessage` | `error` | message, code?, metadata? |
+
+#### 타입 가드
+
+메시지 유효성을 검사하는 함수입니다.
+
+```typescript
+// 메시지 유형 확인
+if (isSetProfileMessage(msg)) {
+  // msg.nickname 타입 안전하게 접근 가능
+}
+
+if (isSelectTeamMessage(msg)) {
+  // msg.team은 'red' | 'blue'
+}
+
+if (isMoveMessage(msg)) {
+  // msg.x, msg.y는 number
+}
+
+if (isThrowSnowballMessage(msg)) {
+  // msg.chargeLevel은 number
+}
+```
+
+---
+
 ## 클라이언트 아키텍처
 
 ### 진입점 (`src/client/index.ts`)
@@ -882,4 +1004,4 @@ npm run build  # public/bundle.js에 출력
 
 ---
 
-**마지막 업데이트**: 2026-01-15
+**마지막 업데이트**: 2026-01-26

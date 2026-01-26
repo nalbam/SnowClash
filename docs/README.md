@@ -119,6 +119,7 @@ docs/
 - **Server**: Node.js, TypeScript, Colyseus, Express
 - **Client**: Phaser 3, TypeScript, Webpack
 - **State Management**: @colyseus/schema (automatic synchronization)
+- **Shared Utilities**: Error handling (GameError), Logging (Logger), Type-safe messages
 - **Testing**: Jest, ts-jest
 - **Deployment**: Docker, AWS, Redis (optional)
 
@@ -150,4 +151,4 @@ This documentation is part of the SnowClash project and is licensed under ISC.
 
 ---
 
-**Last Updated**: 2026-01-15
+**Last Updated**: 2026-01-26

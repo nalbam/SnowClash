@@ -134,6 +134,8 @@ room.state.players.onAdd((player) => { ... });
 
 클라이언트가 `room.send()`를 통해 서버에 전송하는 메시지입니다.
 
+> **참고**: 모든 메시지 타입과 타입 가드는 `src/shared/messages.ts`에 정의되어 있습니다. 서버에서 메시지 유효성 검사 시 `isSetProfileMessage()`, `isSelectTeamMessage()` 등의 타입 가드를 사용할 수 있습니다.
+
 ### setProfile
 
 플레이어 프로필을 설정합니다.
@@ -711,4 +713,4 @@ class GameClient {
 
 ---
 
-**마지막 업데이트**: 2026-01-15
+**마지막 업데이트**: 2026-01-26
