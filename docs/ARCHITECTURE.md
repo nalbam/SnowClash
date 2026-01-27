@@ -1001,7 +1001,3 @@ npm run build  # public/bundle.js에 출력
 
 - [← 문서 인덱스로 돌아가기](./README.md)
 - [← 메인 README로 돌아가기](../README.md)
-
----
-
-**마지막 업데이트**: 2026-01-26

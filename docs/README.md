@@ -148,7 +148,3 @@ If you can't find what you're looking for:
 ## 📜 License
 
 This documentation is part of the SnowClash project and is licensed under ISC.
-
----
-
-**Last Updated**: 2026-01-26

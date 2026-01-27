@@ -237,7 +237,3 @@ Areas to expand test coverage:
 
 - [← Back to Documentation Index](./README.md)
 - [← Back to Main README](../README.md)
-
----
-
-**Last Updated**: 2026-01-15

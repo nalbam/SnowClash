@@ -54,7 +54,7 @@ npm run dev:server
 npm run dev:client
 ```
 
-The server will run on `http://localhost:2567`  
+The server will run on `http://localhost:2567`
 The client will run on `http://localhost:8080`
 
 ## Building
@@ -150,10 +150,10 @@ npm start
   - OR Click and hold to charge, release to fire
 
 ### Mobile/Touch
-- **Movement**: Touch and hold to move toward touch position
-- **Throw Snowball**: Touch and hold to charge, release to fire
+- **Movement**: Virtual joystick (bottom-left corner) - drag to move in any direction
+- **Throw Snowball**: Virtual attack button (bottom-right corner) - tap to throw, hold to charge
 
-**Note**: When using mouse/touch, keep holding to move continuously toward the cursor/touch position. Release to stop or switch to attacking.
+**Note**: On mobile devices, the virtual controller (joystick and attack button) appears automatically. On desktop, you can use mouse/touch: keep holding to move continuously toward the cursor/touch position, release to stop or switch to attacking.
 
 ## Technology Stack
 
