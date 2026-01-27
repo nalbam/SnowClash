@@ -626,7 +626,6 @@ export class LobbyScene extends Phaser.Scene {
     const state = this.room.state as any;
     const currentPlayer = state.players?.get(this.room.sessionId);
     if (!currentPlayer || !currentPlayer.team) {
-      console.log('Please select a team first');
       return;
     }
 

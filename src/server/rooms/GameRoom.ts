@@ -35,6 +35,7 @@ import {
   CHARGED_DAMAGE,
   CHARGE_THRESHOLD,
   READY_TIMEOUT,
+  THROW_COOLDOWN,
   SPAWN_MARGIN,
   SPAWN_PADDING,
 } from '../../shared/constants';
@@ -47,6 +48,7 @@ let roomCounter = Math.floor(Math.random() * 1000);
 
 export class GameRoom extends Room<GameState> {
   private readyTimers: Map<string, NodeJS.Timeout> = new Map();
+  private lastThrowTime: Map<string, number> = new Map();
   private updateInterval?: NodeJS.Timeout;
   private botController?: BotController;
   private endGameTimeout?: NodeJS.Timeout;
@@ -167,6 +169,14 @@ export class GameRoom extends Room<GameState> {
       const player = this.state.players.get(client.sessionId);
       if (!player || player.isStunned) return;
 
+      // Server-side cooldown validation
+      const now = Date.now();
+      const lastThrow = this.lastThrowTime.get(client.sessionId) || 0;
+      if (now - lastThrow < THROW_COOLDOWN) {
+        return; // Ignore - too soon
+      }
+      this.lastThrowTime.set(client.sessionId, now);
+
       const chargeLevel = Math.min(1, Math.max(0, message.chargeLevel || 0));
       const damage = chargeLevel >= CHARGE_THRESHOLD ? CHARGED_DAMAGE : NORMAL_DAMAGE;
 
@@ -274,6 +284,9 @@ export class GameRoom extends Room<GameState> {
       this.readyTimers.delete(client.sessionId);
     }
 
+    // Clear throw cooldown tracker
+    this.lastThrowTime.delete(client.sessionId);
+
     this.state.players.delete(client.sessionId);
 
     // If host left, assign new host
@@ -338,25 +351,43 @@ export class GameRoom extends Room<GameState> {
     // Initialize all player positions (including bots)
     // Spawn randomly within team territory with margin from diagonal
     const allPlayers = Array.from(this.state.players.values());
+    const MAX_SPAWN_ATTEMPTS = 100;
+
     allPlayers.forEach(player => {
       if (player.team === 'red') {
         // Red team: top-right triangle (y < x)
         // Generate random point where y < x - SPAWN_MARGIN
         let x, y;
+        let attempts = 0;
         do {
           x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
           y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
-        } while (y >= x - SPAWN_MARGIN);
+          attempts++;
+        } while (y >= x - SPAWN_MARGIN && attempts < MAX_SPAWN_ATTEMPTS);
+
+        // Fallback to deterministic position if random generation fails
+        if (attempts >= MAX_SPAWN_ATTEMPTS) {
+          x = MAP_SIZE * 0.7;
+          y = MAP_SIZE * 0.3;
+        }
         player.x = x;
         player.y = y;
       } else {
         // Blue team: bottom-left triangle (y > x)
         // Generate random point where y > x + SPAWN_MARGIN
         let x, y;
+        let attempts = 0;
         do {
           x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
           y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
-        } while (y <= x + SPAWN_MARGIN);
+          attempts++;
+        } while (y <= x + SPAWN_MARGIN && attempts < MAX_SPAWN_ATTEMPTS);
+
+        // Fallback to deterministic position if random generation fails
+        if (attempts >= MAX_SPAWN_ATTEMPTS) {
+          x = MAP_SIZE * 0.3;
+          y = MAP_SIZE * 0.7;
+        }
         player.x = x;
         player.y = y;
       }

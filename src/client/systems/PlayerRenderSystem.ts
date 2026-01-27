@@ -78,8 +78,6 @@ export class PlayerRenderSystem {
    * Create a new player sprite with all UI elements
    */
   public createPlayer(sessionId: string, state: PlayerState): void {
-    console.log('Creating player:', sessionId, 'team:', state.team, 'pos:', state.x, state.y);
-
     const team = state.team || 'red';
     const textureKey = `character_${team}_idle`;
 

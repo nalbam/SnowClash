@@ -58,22 +58,40 @@ export class BotController {
     const bot = this.state.players.get(botId);
     if (!bot) return;
 
+    const MAX_SPAWN_ATTEMPTS = 100;
+
     if (bot.team === 'red') {
       // Red team: top-right triangle (y < x - SPAWN_MARGIN)
       let x, y;
+      let attempts = 0;
       do {
         x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
         y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
-      } while (y >= x - SPAWN_MARGIN);
+        attempts++;
+      } while (y >= x - SPAWN_MARGIN && attempts < MAX_SPAWN_ATTEMPTS);
+
+      // Fallback to deterministic position if random generation fails
+      if (attempts >= MAX_SPAWN_ATTEMPTS) {
+        x = MAP_SIZE * 0.7;
+        y = MAP_SIZE * 0.3;
+      }
       bot.x = x;
       bot.y = y;
     } else {
       // Blue team: bottom-left triangle (y > x + SPAWN_MARGIN)
       let x, y;
+      let attempts = 0;
       do {
         x = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
         y = SPAWN_PADDING + Math.random() * (MAP_SIZE - SPAWN_PADDING * 2);
-      } while (y <= x + SPAWN_MARGIN);
+        attempts++;
+      } while (y <= x + SPAWN_MARGIN && attempts < MAX_SPAWN_ATTEMPTS);
+
+      // Fallback to deterministic position if random generation fails
+      if (attempts >= MAX_SPAWN_ATTEMPTS) {
+        x = MAP_SIZE * 0.3;
+        y = MAP_SIZE * 0.7;
+      }
       bot.x = x;
       bot.y = y;
     }
