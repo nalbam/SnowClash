@@ -133,7 +133,6 @@ When updating documentation:
 4. Include code examples where appropriate
 5. Keep diagrams and ASCII art up to date
 6. Test all commands and code snippets
-7. Update the "Last Updated" date in each document
 
 ## 🆘 Getting Help
 

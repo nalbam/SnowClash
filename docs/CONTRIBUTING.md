@@ -97,12 +97,19 @@ npm start
 ```
 SnowClash/
 ├── src/
+│   ├── shared/              # 공유 코드 (서버/클라이언트 공통)
+│   │   ├── constants.ts     # 게임 상수
+│   │   ├── errors.ts        # 에러 코드 및 GameError 클래스
+│   │   ├── logger.ts        # 로깅 유틸리티
+│   │   └── messages.ts      # 메시지 인터페이스 및 타입 가드
+│   │
 │   ├── client/              # 클라이언트 코드 (Phaser 3)
 │   │   ├── index.ts         # 진입점, Phaser 설정
 │   │   ├── config.ts        # 서버 연결 설정
 │   │   ├── index.html       # HTML 템플릿
 │   │   ├── assets/          # 에셋 생성
-│   │   │   └── PixelCharacter.ts
+│   │   │   ├── PixelCharacter.ts      # 캐릭터 텍스처/애니메이션
+│   │   │   └── EnvironmentAssets.ts   # 환경 장식 (나무, 바위)
 │   │   ├── systems/         # 게임 시스템 모듈
 │   │   │   ├── InputSystem.ts
 │   │   │   ├── PlayerRenderSystem.ts
@@ -117,10 +124,14 @@ SnowClash/
 │       ├── index.ts         # 진입점, Express/Colyseus 설정
 │       ├── rooms/           # 게임 룸
 │       │   └── GameRoom.ts  # 핵심 게임 로직
-│       └── schema/          # 상태 스키마
-│           ├── GameState.ts
-│           ├── PlayerSchema.ts
-│           └── SnowballSchema.ts
+│       ├── schema/          # 상태 스키마
+│       │   ├── GameState.ts
+│       │   ├── PlayerSchema.ts
+│       │   └── SnowballSchema.ts
+│       ├── bots/            # 봇 시스템
+│       │   └── BotController.ts
+│       └── utils/           # 유틸리티
+│           └── NicknameGenerator.ts
 │
 ├── public/                  # 정적 파일 (빌드 결과물)
 ├── dist/                    # 서버 빌드 결과물
