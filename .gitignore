@@ -47,7 +47,20 @@ Thumbs.db
 *~
 
 # ============================================
+# Git Worktrees
+# ============================================
+.worktrees/
+
+# ============================================
 # Testing / Coverage
 # ============================================
 coverage/
 .nyc_output/
+
+# claude
+.claude/
+.prompt-*.md
+.prompt.md
+prompt-*.md
+prompt.md
+docs/plans/
