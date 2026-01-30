@@ -8,6 +8,7 @@ import { PlayerRenderSystem } from '../systems/PlayerRenderSystem';
 import { VirtualControllerSystem } from '../systems/VirtualControllerSystem';
 import { MAP_SIZE, PLAYER_SPEED, THROW_COOLDOWN, MIN_CHARGE_TIME } from '../../shared/constants';
 import { GameSceneInitData } from '../../shared/messages';
+import { RoomAdapter, OnlineRoomAdapter } from '../adapters';
 
 export class GameScene extends Phaser.Scene {
   // Systems
@@ -26,7 +27,7 @@ export class GameScene extends Phaser.Scene {
   private myTeam?: string;
   private mapDrawn: boolean = false;
 
-  private room?: Room;
+  private room?: RoomAdapter;
   private currentPlayer?: string;
   private listenersSetup: boolean = false;
   private playersListenersSetup: boolean = false;
@@ -56,7 +57,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   init(data: GameSceneInitData) {
-    this.room = data.room;
+    // Support both Colyseus Room and RoomAdapter
+    if (data.room) {
+      if ('isOffline' in data.room) {
+        // Already a RoomAdapter
+        this.room = data.room as RoomAdapter;
+      } else {
+        // Wrap Colyseus Room in OnlineRoomAdapter
+        this.room = new OnlineRoomAdapter(data.room as Room);
+      }
+    }
     this.listenersSetup = false;
     this.playersListenersSetup = false;
     this.snowballsListenersSetup = false;
@@ -296,6 +306,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setupCollectionListeners(state: any) {
+    // For offline mode, skip collection listeners - syncPlayersFromState handles everything
+    if (this.room?.isOffline) {
+      this.playersListenersSetup = true;
+      this.snowballsListenersSetup = true;
+      this.listenersSetup = true;
+      return;
+    }
+
     // Try to setup players listeners (only once)
     if (!this.playersListenersSetup && state.players && typeof state.players.onAdd === 'function') {
       this.playersListenersSetup = true;
@@ -519,10 +537,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
-    // Cleanup room listeners
-    // Note: Colyseus room listeners are automatically cleaned up when the room is destroyed
-    // We just need to clear our references to avoid holding onto stale callbacks
+    // Cleanup room adapter resources
     if (this.room) {
+      this.room.destroy();
       this.stateChangeHandler = undefined;
       this.gameEndedHandler = undefined;
     }
