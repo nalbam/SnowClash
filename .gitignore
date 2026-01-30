@@ -57,7 +57,9 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# claude
+# ============================================
+# Claude Code
+# ============================================
 .claude/
 .prompt-*.md
 .prompt.md
