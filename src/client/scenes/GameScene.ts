@@ -121,6 +121,16 @@ export class GameScene extends Phaser.Scene {
     // Setup room state listeners
     this.setupRoomHandlers();
 
+    // Show offline mode indicator
+    if (this.room?.isOffline) {
+      this.add.text(10, 10, 'OFFLINE MODE', {
+        fontSize: '12px',
+        color: '#ff6600',
+        backgroundColor: '#ffffff',
+        padding: { x: 6, y: 3 }
+      }).setDepth(1000);
+    }
+
     // Force initial sync after a short delay (in case onStateChange doesn't fire)
     this.time.delayedCall(100, () => {
       if (this.room && this.room.state) {

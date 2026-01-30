@@ -4,6 +4,7 @@ import { config } from '../config';
 import { generateCharacterTextures, createCharacterAnimations } from '../assets/PixelCharacter';
 import { generateEnvironmentTextures, createMenuDecorations } from '../assets/EnvironmentAssets';
 import { MAP_SIZE, UI_BORDER_MARGIN } from '../../shared/constants';
+import { OfflineRoomAdapter } from '../adapters';
 
 interface RoomInfo {
   roomId: string;
@@ -319,12 +320,16 @@ export class MainMenuScene extends Phaser.Scene {
     if (!this.client) return;
 
     try {
-      const room = await this.client.joinOrCreate('game_room', {
-        nickname: this.nickname
-      });
+      const room = await this.withTimeout(
+        this.client.joinOrCreate('game_room', {
+          nickname: this.nickname
+        }),
+        3000
+      );
       this.scene.start('LobbyScene', { room, nickname: this.nickname });
     } catch (error) {
-      console.error('Failed to quick play:', error);
+      console.warn('Failed to quick play:', error);
+      this.showOfflineDialog();
     }
   }
 
@@ -333,13 +338,17 @@ export class MainMenuScene extends Phaser.Scene {
 
     try {
       const roomName = `${this.nickname}'s Room`;
-      const room = await this.client.create('game_room', {
-        roomName,
-        nickname: this.nickname
-      });
+      const room = await this.withTimeout(
+        this.client.create('game_room', {
+          roomName,
+          nickname: this.nickname
+        }),
+        3000
+      );
       this.scene.start('LobbyScene', { room, nickname: this.nickname });
     } catch (error) {
-      console.error('Failed to create room:', error);
+      console.warn('Failed to create room:', error);
+      this.showOfflineDialog();
     }
   }
 
@@ -347,13 +356,128 @@ export class MainMenuScene extends Phaser.Scene {
     if (!this.client) return;
 
     try {
-      const room = await this.client.joinById(roomId, {
-        nickname: this.nickname
-      });
+      const room = await this.withTimeout(
+        this.client.joinById(roomId, {
+          nickname: this.nickname
+        }),
+        3000
+      );
       this.scene.start('LobbyScene', { room, nickname: this.nickname });
     } catch (error) {
-      console.error('Failed to join room:', error);
+      console.warn('Failed to join room:', error);
+      this.showOfflineDialog();
     }
+  }
+
+  /**
+   * Wrap a promise with timeout
+   */
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('Connection timeout'));
+      }, timeoutMs);
+
+      promise
+        .then((result) => {
+          clearTimeout(timer);
+          resolve(result);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
+  }
+
+  /**
+   * Show offline mode dialog when server connection fails
+   */
+  private showOfflineDialog() {
+    const centerX = this.cameras.main.width / 2;
+    const centerY = this.cameras.main.height / 2;
+
+    // Create dialog container
+    const dialogContainer = this.add.container(centerX, centerY);
+
+    // Semi-transparent background overlay
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.5);
+    overlay.fillRect(-centerX, -centerY, this.cameras.main.width, this.cameras.main.height);
+    dialogContainer.add(overlay);
+
+    // Dialog box background
+    const dialogBg = this.add.graphics();
+    dialogBg.fillStyle(0xffffff, 1);
+    dialogBg.lineStyle(2, 0x333333, 1);
+    dialogBg.fillRoundedRect(-150, -80, 300, 160, 12);
+    dialogBg.strokeRoundedRect(-150, -80, 300, 160, 12);
+    dialogContainer.add(dialogBg);
+
+    // Dialog title
+    const title = this.add.text(0, -55, 'Server Unavailable', {
+      fontSize: '18px',
+      color: '#333333',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    dialogContainer.add(title);
+
+    // Dialog message
+    const message = this.add.text(0, -15, 'Play offline with bots?', {
+      fontSize: '16px',
+      color: '#666666'
+    }).setOrigin(0.5);
+    dialogContainer.add(message);
+
+    // Yes button
+    const yesBtn = this.add.text(-60, 40, 'Yes', {
+      fontSize: '16px',
+      color: '#ffffff',
+      backgroundColor: '#4CAF50',
+      padding: { x: 20, y: 8 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    yesBtn.on('pointerdown', () => {
+      this.sound.play('click', { volume: 0.3 });
+      dialogContainer.destroy();
+      this.startOfflineMode();
+    });
+    yesBtn.on('pointerover', () => {
+      this.sound.play('hover', { volume: 0.2 });
+      yesBtn.setStyle({ backgroundColor: '#66BB6A' });
+    });
+    yesBtn.on('pointerout', () => yesBtn.setStyle({ backgroundColor: '#4CAF50' }));
+    dialogContainer.add(yesBtn);
+
+    // No button
+    const noBtn = this.add.text(60, 40, 'No', {
+      fontSize: '16px',
+      color: '#ffffff',
+      backgroundColor: '#f44336',
+      padding: { x: 20, y: 8 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    noBtn.on('pointerdown', () => {
+      this.sound.play('click', { volume: 0.3 });
+      dialogContainer.destroy();
+    });
+    noBtn.on('pointerover', () => {
+      this.sound.play('hover', { volume: 0.2 });
+      noBtn.setStyle({ backgroundColor: '#ef5350' });
+    });
+    noBtn.on('pointerout', () => noBtn.setStyle({ backgroundColor: '#f44336' }));
+    dialogContainer.add(noBtn);
+
+    // Bring dialog to front
+    dialogContainer.setDepth(1000);
+  }
+
+  /**
+   * Start offline mode with bots
+   */
+  private startOfflineMode() {
+    const offlineRoom = new OfflineRoomAdapter(this.nickname);
+    this.scene.start('GameScene', { room: offlineRoom, nickname: this.nickname });
   }
 
   shutdown() {
