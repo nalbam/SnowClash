@@ -161,6 +161,9 @@ export class GameEngine {
 
     this.state.phase = 'playing';
 
+    // Notify state change for phase transition
+    this.callbacks.onStateChange?.(this.state);
+
     // Initialize all player positions and state
     this.state.players.forEach((player) => {
       // Reset energy and stun status
