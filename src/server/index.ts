@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { Server, matchMaker, ServerOptions } from 'colyseus';
+import { WebSocketTransport } from '@colyseus/ws-transport';
 import { RedisPresence } from '@colyseus/redis-presence';
 import { RedisDriver } from '@colyseus/redis-driver';
 import { createServer } from 'http';
@@ -77,9 +78,7 @@ const server = createServer(app);
 // Redis configuration (optional - for horizontal scaling)
 const REDIS_URL = process.env.REDIS_URL;
 
-const serverOptions: ServerOptions = {
-  server: server,
-};
+const serverOptions: ServerOptions = {};
 
 if (REDIS_URL) {
   console.log(`Redis enabled: ${REDIS_URL}`);
@@ -89,7 +88,19 @@ if (REDIS_URL) {
   console.log('Redis not configured - running in single server mode');
 }
 
-const gameServer = new Server(serverOptions);
+// Security: WebSocket origin verification (production only)
+const isProd = process.env.NODE_ENV === 'production';
+const verifyClient = (info: any, next: (result: boolean, code?: number, name?: string) => void) => {
+  if (!isProd) return next(true);
+  const origin = info.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return next(true);
+  next(false, 403, 'Forbidden origin');
+};
+
+const gameServer = new Server({
+  ...serverOptions,
+  transport: new WebSocketTransport({ server, verifyClient }),
+});
 
 gameServer.define('game_room', GameRoom);
 

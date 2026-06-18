@@ -3,8 +3,6 @@ import { Schema, type } from '@colyseus/schema';
 export class PlayerSchema extends Schema {
   @type('string') sessionId: string = '';
   @type('string') nickname: string = '';
-  @type('string') googleId: string = '';
-  @type('string') photoUrl: string = '';
   @type('string') team: string = ''; // 'red' or 'blue'
   @type('boolean') isReady: boolean = false;
   @type('boolean') isHost: boolean = false;

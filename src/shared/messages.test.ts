@@ -16,9 +16,6 @@ describe('Message Type Guards', () => {
     it('should return true for valid SetProfileMessage', () => {
       const validMessages: SetProfileMessage[] = [
         { nickname: 'Player1' },
-        { nickname: 'Player1', googleId: '123' },
-        { nickname: 'Player1', photoUrl: 'https://example.com/photo.jpg' },
-        { nickname: 'Player1', googleId: '123', photoUrl: 'https://example.com/photo.jpg' },
       ];
 
       validMessages.forEach(msg => {
@@ -186,16 +183,10 @@ describe('Message Type Guards', () => {
 });
 
 describe('Message Type Interfaces', () => {
-  it('SetProfileMessage should accept nickname and optional fields', () => {
+  it('SetProfileMessage should accept nickname', () => {
     const msg1: SetProfileMessage = { nickname: 'Player1' };
-    const msg2: SetProfileMessage = { nickname: 'Player1', googleId: '123' };
-    const msg3: SetProfileMessage = { nickname: 'Player1', photoUrl: 'url' };
-    const msg4: SetProfileMessage = { nickname: 'Player1', googleId: '123', photoUrl: 'url' };
 
     expect(msg1).toBeDefined();
-    expect(msg2).toBeDefined();
-    expect(msg3).toBeDefined();
-    expect(msg4).toBeDefined();
   });
 
   it('SelectTeamMessage should only accept red or blue', () => {

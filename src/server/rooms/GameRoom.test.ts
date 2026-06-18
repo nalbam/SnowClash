@@ -980,12 +980,8 @@ describe('GameRoom', () => {
 
       // Update profile
       player!.nickname = 'UpdatedName';
-      player!.googleId = 'google123';
-      player!.photoUrl = 'https://example.com/photo.jpg';
 
       expect(player!.nickname).toBe('UpdatedName');
-      expect(player!.googleId).toBe('google123');
-      expect(player!.photoUrl).toBe('https://example.com/photo.jpg');
     });
 
     it('should handle partial profile updates', () => {
@@ -998,8 +994,6 @@ describe('GameRoom', () => {
       player!.nickname = 'NewNickname';
 
       expect(player!.nickname).toBe('NewNickname');
-      expect(player!.googleId).toBe('');
-      expect(player!.photoUrl).toBe('');
     });
 
     it('should handle profile updates with all optional fields', () => {
@@ -1010,12 +1004,8 @@ describe('GameRoom', () => {
 
       // Update all fields
       player!.nickname = 'FullProfile';
-      player!.googleId = 'google-id-123';
-      player!.photoUrl = 'https://example.com/avatar.png';
 
       expect(player!.nickname).toBe('FullProfile');
-      expect(player!.googleId).toBe('google-id-123');
-      expect(player!.photoUrl).toBe('https://example.com/avatar.png');
     });
   });
 

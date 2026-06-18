@@ -49,6 +49,7 @@ let roomCounter = Math.floor(Math.random() * 1000);
 export class GameRoom extends Room<GameState> {
   private readyTimers: Map<string, NodeJS.Timeout> = new Map();
   private lastThrowTime: Map<string, number> = new Map();
+  private msgCounts = new Map<string, { windowStart: number; count: number }>();
   private updateInterval?: NodeJS.Timeout;
   private botController?: BotController;
   private endGameTimeout?: NodeJS.Timeout;
@@ -77,8 +78,6 @@ export class GameRoom extends Room<GameState> {
       const player = this.state.players.get(client.sessionId);
       if (player) {
         player.nickname = message.nickname || 'Player';
-        player.googleId = message.googleId || '';
-        player.photoUrl = message.photoUrl || '';
       }
     });
 
@@ -143,6 +142,7 @@ export class GameRoom extends Room<GameState> {
         this.logger.warn('Invalid move message', { sessionId: client.sessionId });
         return;
       }
+      if (!this.allowMessage(client.sessionId)) return;
       if (this.state.phase !== 'playing') return;
 
       const player = this.state.players.get(client.sessionId);
@@ -164,6 +164,7 @@ export class GameRoom extends Room<GameState> {
         this.logger.warn('Invalid throwSnowball message', { sessionId: client.sessionId });
         return;
       }
+      if (!this.allowMessage(client.sessionId)) return;
       if (this.state.phase !== 'playing') return;
 
       const player = this.state.players.get(client.sessionId);
@@ -230,8 +231,6 @@ export class GameRoom extends Room<GameState> {
     const player = new PlayerSchema();
     player.sessionId = client.sessionId;
     player.nickname = nickname;
-    player.googleId = typeof options.googleId === 'string' ? options.googleId.substring(0, 100) : '';
-    player.photoUrl = typeof options.photoUrl === 'string' && options.photoUrl.startsWith('https://') ? options.photoUrl.substring(0, 500) : '';
     player.isBot = false;
     player.joinedAt = Date.now();
 
@@ -286,6 +285,9 @@ export class GameRoom extends Room<GameState> {
 
     // Clear throw cooldown tracker
     this.lastThrowTime.delete(client.sessionId);
+
+    // Clear message throttle counter
+    this.msgCounts.delete(client.sessionId);
 
     this.state.players.delete(client.sessionId);
 
@@ -494,6 +496,17 @@ export class GameRoom extends Room<GameState> {
         this.botController.removeAllBots();
       }
     }, 3000);
+  }
+
+  private allowMessage(sessionId: string): boolean {
+    const now = Date.now();
+    const e = this.msgCounts.get(sessionId);
+    if (!e || now - e.windowStart >= 1000) {
+      this.msgCounts.set(sessionId, { windowStart: now, count: 1 });
+      return true;
+    }
+    e.count++;
+    return e.count <= 200;
   }
 
   private isInPlayerTerritory(x: number, y: number, team: string): boolean {

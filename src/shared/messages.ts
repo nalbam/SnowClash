@@ -1,8 +1,6 @@
 // Client -> Server messages
 export interface SetProfileMessage {
   nickname: string;
-  googleId?: string;
-  photoUrl?: string;
 }
 
 export interface SelectTeamMessage {
@@ -44,8 +42,6 @@ export interface ErrorMessage {
 export interface RoomOptions {
   roomName?: string;
   nickname?: string;
-  googleId?: string;
-  photoUrl?: string;
 }
 
 // Scene init data
@@ -75,7 +71,8 @@ export function isMoveMessage(msg: any): msg is MoveMessage {
   return msg !== null &&
          typeof msg === 'object' &&
          typeof msg.x === 'number' &&
-         typeof msg.y === 'number';
+         typeof msg.y === 'number' &&
+         msg.x >= -1 && msg.x <= 1 && msg.y >= -1 && msg.y <= 1;
 }
 
 export function isThrowSnowballMessage(msg: any): msg is ThrowSnowballMessage {
