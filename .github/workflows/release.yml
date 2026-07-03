@@ -209,14 +209,19 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
+      # Re-runs keep the previous attempt's artifact, and deploy-pages fails on
+      # duplicate names — a per-attempt artifact name keeps re-runs deployable.
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: './public'
+          name: github-pages-${{ github.run_attempt }}
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
 
       - name: Output URL
         run: echo "✅ Deployed version ${{ steps.version.outputs.version }} to ${{ steps.deployment.outputs.page_url }}"
