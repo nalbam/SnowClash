@@ -23,9 +23,6 @@ concurrency:
   group: "release-${{ github.ref_name }}"
   cancel-in-progress: true
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
 jobs:
   # One native runner per arch (no QEMU): an emulated arm64 npm install/build
   # can hang for hours. Each platform builds natively and pushes by digest; the
@@ -80,6 +77,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Docker image refs must be lowercase; github.repository may contain
+      # uppercase letters (e.g. SnowClash), so lowercase it in bash.
+      - name: Set image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Extract Docker metadata
         id: docker_meta
         uses: docker/metadata-action@v6
@@ -132,6 +134,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Extract Docker metadata
         id: docker_meta
